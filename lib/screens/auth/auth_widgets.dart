@@ -42,17 +42,7 @@ class AuthToggle extends StatelessWidget {
             height: 40,
             alignment: Alignment.center,
             decoration: selected
-                ? BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x14000000),
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  )
+                ? pillDecoration(colors.card, radius: 24)
                 : null,
             child: Text(
               label,
@@ -70,7 +60,8 @@ class AuthToggle extends StatelessWidget {
     return Container(
       height: 48,
       padding: const EdgeInsets.all(4),
-      decoration: pillDecoration(colors.surface, radius: 24),
+      decoration: pillDecoration(colors.surface,
+          radius: 24, inset: const Offset(0, -2)),
       child: Row(
         children: [segment('Войти', false), segment('Вступить', true)],
       ),
@@ -119,7 +110,8 @@ class AuthField extends StatelessWidget {
         Container(
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: pillDecoration(colors.surface, radius: 24),
+          decoration: pillDecoration(colors.surface,
+              radius: 24, inset: const Offset(0, -2)),
           child: Row(
             children: [
               Expanded(

@@ -6,6 +6,7 @@ import 'package:a_messenger/auth/mock_auth_repository.dart';
 import 'package:a_messenger/data/chat_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
+import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/main.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
@@ -20,6 +21,7 @@ void main() {
         MockAuthRepository(confirmDelay: const Duration(seconds: 1));
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
+    privacyRepository = MockPrivacyRepository();
   });
 
   testWidgets('splash → экран входа (сессии нет)', (tester) async {
@@ -151,5 +153,32 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     expect(find.text('Denis Panda'), findsOneWidget);
+  });
+
+  testWidgets('приватность: выбор сохраняется в репозиторий', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // Настройки → «Настройки стены» → экран приватности.
+    final settingsIcon = find.byWidgetPredicate((w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == 'assets/images/nav_settings.png');
+    await tester.tap(settingsIcon);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Настройки стены'));
+    await tester.pumpAndSettle();
+
+    // «Кто видит мою стену?»: по умолчанию «Все», переключаем на «Я».
+    await tester.tap(find.text('Я').first);
+    await tester.pumpAndSettle();
+    expect((await privacyRepository.load()).wallVisibleTo, Audience.me);
+
+    // После перезахода выбранное значение на месте.
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Настройки стены'));
+    await tester.pumpAndSettle();
+    expect((await privacyRepository.load()).wallVisibleTo, Audience.me);
   });
 }

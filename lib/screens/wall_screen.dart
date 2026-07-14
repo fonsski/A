@@ -166,10 +166,8 @@ class _WallTab extends StatelessWidget {
         child: Container(
           alignment: Alignment.center,
           decoration: selected
-              ? BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(32),
-                )
+              ? pillDecoration(colors.card,
+                  radius: 32, inset: const Offset(0, -2))
               : null,
           child: Text(
             label,

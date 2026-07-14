@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/privacy_repository.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -11,19 +12,26 @@ class PrivacyScreen extends StatefulWidget {
 }
 
 class _PrivacyScreenState extends State<PrivacyScreen> {
-  final _wall = <String, int>{
-    'Кто видит мою стену?': 1,
-    'Кто может оставлять записи на стене?': 0,
-    'Кто может комментировать мои записи?': 1,
-  };
-  final _security = <String, int>{
-    'Кто видит мой номер?': 1,
-    'Кто видит статус в сети?': 0,
-  };
+  PrivacySettings? _settings;
+
+  @override
+  void initState() {
+    super.initState();
+    privacyRepository.load().then((s) {
+      if (mounted) setState(() => _settings = s);
+    });
+  }
+
+  void _update(PrivacySettings updated) {
+    // Оптимистично: UI сразу, база следом.
+    setState(() => _settings = updated);
+    privacyRepository.save(updated);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final s = _settings;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -38,32 +46,52 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               ),
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                children: [
-                  const _SectionTitle('Настройки стены'),
-                  for (final entry in _wall.entries)
-                    _SegmentedRow(
-                      question: entry.key,
-                      selected: entry.value,
-                      onChanged: (i) => setState(() => _wall[entry.key] = i),
+              child: s == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                      children: [
+                        const _SectionTitle('Настройки стены'),
+                        _SegmentedRow(
+                          question: 'Кто видит мою стену?',
+                          selected: s.wallVisibleTo.index,
+                          onChanged: (i) => _update(
+                              s.copyWith(wallVisibleTo: Audience.values[i])),
+                        ),
+                        _SegmentedRow(
+                          question: 'Кто может оставлять записи на стене?',
+                          selected: s.wallPostBy.index,
+                          onChanged: (i) => _update(
+                              s.copyWith(wallPostBy: Audience.values[i])),
+                        ),
+                        _SegmentedRow(
+                          question: 'Кто может комментировать мои записи?',
+                          options: const ['Все', 'Друзья', 'Никто'],
+                          selected: s.commentsBy.index,
+                          onChanged: (i) => _update(
+                              s.copyWith(commentsBy: Audience.values[i])),
+                        ),
+                        const SizedBox(height: 16),
+                        const _SectionTitle('Общая безопасность'),
+                        _SegmentedRow(
+                          question: 'Кто видит мой номер?',
+                          selected: s.phoneVisibleTo.index,
+                          onChanged: (i) => _update(
+                              s.copyWith(phoneVisibleTo: Audience.values[i])),
+                        ),
+                        _SegmentedRow(
+                          question: 'Кто видит статус в сети?',
+                          selected: s.onlineVisibleTo.index,
+                          onChanged: (i) => _update(
+                              s.copyWith(onlineVisibleTo: Audience.values[i])),
+                        ),
+                        const _ActionRow(
+                            question: 'Черный список', action: 'Показать'),
+                        const _ActionRow(
+                            question: 'Код для входа в приложение',
+                            action: 'Изменить'),
+                      ],
                     ),
-                  const SizedBox(height: 16),
-                  const _SectionTitle('Общая безопасность'),
-                  for (final entry in _security.entries)
-                    _SegmentedRow(
-                      question: entry.key,
-                      selected: entry.value,
-                      onChanged: (i) =>
-                          setState(() => _security[entry.key] = i),
-                    ),
-                  const _ActionRow(
-                      question: 'Черный список', action: 'Показать'),
-                  const _ActionRow(
-                      question: 'Код для входа в приложение',
-                      action: 'Изменить'),
-                ],
-              ),
             ),
           ],
         ),
@@ -99,11 +127,11 @@ class _SegmentedRow extends StatelessWidget {
     required this.question,
     required this.selected,
     required this.onChanged,
+    this.options = const ['Все', 'Друзья', 'Я'],
   });
 
-  static const _options = ['Все', 'Друзья', 'Я'];
-
   final String question;
+  final List<String> options;
   final int selected;
   final ValueChanged<int> onChanged;
 
@@ -128,7 +156,7 @@ class _SegmentedRow extends StatelessWidget {
             decoration: pillDecoration(colors.surface),
             child: Row(
               children: [
-                for (var i = 0; i < _options.length; i++)
+                for (var i = 0; i < options.length; i++)
                   Expanded(
                     child: GestureDetector(
                       onTap: () => onChanged(i),
@@ -137,20 +165,11 @@ class _SegmentedRow extends StatelessWidget {
                         height: 36,
                         alignment: Alignment.center,
                         decoration: i == selected
-                            ? BoxDecoration(
-                                color: colors.card,
-                                borderRadius: BorderRadius.circular(36),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x14000000),
-                                    blurRadius: 4,
-                                    offset: Offset(0, -2),
-                                  ),
-                                ],
-                              )
+                            ? pillDecoration(colors.card,
+                                radius: 36, inset: const Offset(0, -2))
                             : null,
                         child: Text(
-                          _options[i],
+                          options[i],
                           style: TextStyle(
                             color: i == selected
                                 ? colors.textPrimary

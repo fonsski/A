@@ -13,6 +13,7 @@ import 'package:a_messenger/auth/mock_auth_repository.dart';
 import 'package:a_messenger/data/chat_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
+import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
@@ -68,6 +69,7 @@ void main() {
     authRepository = MockAuthRepository();
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
+    privacyRepository = MockPrivacyRepository();
     Directory(_outDir).createSync(recursive: true);
     final fontData = rootBundle.load('assets/fonts/RobotoFlex.ttf');
     final loader = FontLoader('RobotoFlex')..addFont(fontData);
