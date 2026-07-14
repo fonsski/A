@@ -43,6 +43,7 @@ class SupabaseChatRepository implements ChatRepository {
               ? null
               : DateTime.parse(r['last_at'] as String),
           unread: (r['unread'] as num?)?.toInt() ?? 0,
+          peerAvatarUrl: r['peer_avatar'] as String?,
         ),
     ];
     _chatsController.add(_lastChats!);
@@ -98,7 +99,7 @@ class SupabaseChatRepository implements ChatRepository {
     if (q.isEmpty) return const [];
     final rows = await _client
         .from('profiles')
-        .select('id, username, display_name')
+        .select('id, username, display_name, avatar_url')
         .not('username', 'is', null)
         .neq('id', _uid)
         .or('username.ilike.%$q%,display_name.ilike.%$q%')
@@ -110,6 +111,7 @@ class SupabaseChatRepository implements ChatRepository {
           username: r['username'] as String,
           displayName:
               (r['display_name'] ?? r['username']) as String,
+          avatarUrl: r['avatar_url'] as String?,
         ),
     ];
   }

@@ -30,9 +30,9 @@ class SupabaseWallRepository implements WallRepository {
   Future<void> _refresh() async {
     final rows = await _client.from('posts').select('''
           id, wall_owner_id, author_id, body, created_at,
-          author:profiles!posts_author_id_fkey(username, display_name),
+          author:profiles!posts_author_id_fkey(username, display_name, avatar_url),
           comments(id, body, image_url, created_at,
-                   author:profiles!comments_author_id_fkey(username, display_name)),
+                   author:profiles!comments_author_id_fkey(username, display_name, avatar_url)),
           reactions(user_id)
         ''').order('created_at', ascending: false);
 
@@ -58,6 +58,7 @@ class SupabaseWallRepository implements WallRepository {
       agaCount: reactions.length,
       myAga: reactions.any((x) => x['user_id'] == _uid),
       mine: r['wall_owner_id'] == _uid,
+      authorAvatarUrl: author['avatar_url'] as String?,
       comments: [
         for (final c in comments)
           Comment(
@@ -66,6 +67,8 @@ class SupabaseWallRepository implements WallRepository {
                     as Map<String, dynamic>)['display_name'] as String? ??
                 'Кто-то',
             text: c['body'] as String,
+            authorAvatarUrl: ((c['author'] ?? const {})
+                as Map<String, dynamic>)['avatar_url'] as String?,
           ),
       ],
     );

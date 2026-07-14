@@ -149,7 +149,11 @@ class _ChatTile extends StatelessWidget {
         chatRepository.markRead(chat.id);
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ChatScreen(chatId: chat.id, name: chat.peerName),
+            builder: (_) => ChatScreen(
+              chatId: chat.id,
+              name: chat.peerName,
+              avatarUrl: chat.peerAvatarUrl,
+            ),
           ),
         );
       },
@@ -159,7 +163,7 @@ class _ChatTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 13),
         child: Row(
           children: [
-            const AAvatar(size: 56),
+            AAvatar(size: 56, url: chat.peerAvatarUrl),
             const SizedBox(width: 8),
             Expanded(
               child: Column(

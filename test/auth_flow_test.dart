@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:a_messenger/auth/auth_repository.dart';
@@ -74,6 +76,15 @@ void main() {
       await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
       await repo.signOut();
       expect(repo.current, isNull);
+    });
+
+    test('updateAvatar кладёт data-URI в профиль', () async {
+      await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
+      await repo.updateAvatar(
+        Uint8List.fromList([1, 2, 3]),
+        'image/png',
+      );
+      expect(repo.current!.profile!.avatarUrl, startsWith('data:image/png'));
     });
 
     test('updateProfile сохраняет поля, пустые строки очищают', () async {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 /// Профиль пользователя в системе «А?».
 class Profile {
@@ -8,6 +9,7 @@ class Profile {
     this.bio,
     this.link,
     this.phone,
+    this.avatarUrl,
   });
 
   /// null, пока пользователь не выбрал ник (шаг онбординга).
@@ -16,6 +18,7 @@ class Profile {
   final String? bio;
   final String? link; // ссылка на другую соцсеть
   final String? phone;
+  final String? avatarUrl;
 }
 
 /// Текущее состояние авторизации.
@@ -82,6 +85,9 @@ abstract class AuthRepository {
     required String link,
     required String phone,
   });
+
+  /// Загружает аватар (Storage) и обновляет profiles.avatar_url.
+  Future<void> updateAvatar(Uint8List bytes, String mimeType);
 }
 
 /// Единая точка доступа; назначается в main() до runApp.

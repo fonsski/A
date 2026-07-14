@@ -76,9 +76,9 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.only(right: 26),
-                    child: AAvatar(size: 72),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 26),
+                    child: AAvatar(size: 72, url: profile?.avatarUrl),
                   ),
                 ],
               ),

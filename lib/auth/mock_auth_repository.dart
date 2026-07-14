@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'auth_repository.dart';
 
@@ -13,6 +15,7 @@ class _MockUser {
   String? bio;
   String? link;
   String? phone;
+  String? avatarUrl;
 }
 
 /// Локальный бэкенд для разработки без Supabase: всё в памяти,
@@ -102,6 +105,7 @@ class MockAuthRepository implements AuthRepository {
           bio: user.bio,
           link: user.link,
           phone: user.phone,
+          avatarUrl: user.avatarUrl,
         ),
       );
 
@@ -153,6 +157,15 @@ class MockAuthRepository implements AuthRepository {
       ..bio = clean(bio)
       ..link = clean(link)
       ..phone = clean(phone);
+    _emit(_snapshotOf(user));
+  }
+
+  @override
+  Future<void> updateAvatar(Uint8List bytes, String mimeType) async {
+    final snapshot = _current;
+    if (snapshot == null) throw const AuthFailure('Сессия истекла — войди заново');
+    final user = _users[snapshot.email]!
+      ..avatarUrl = 'data:$mimeType;base64,${base64Encode(bytes)}';
     _emit(_snapshotOf(user));
   }
 }

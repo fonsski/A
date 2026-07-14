@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
@@ -175,17 +177,39 @@ class APill extends StatelessWidget {
   }
 }
 
-/// Круглый аватар из ассетов.
+/// Круглый аватар: URL из Storage, data-URI (мок) или ассет-заглушка.
 class AAvatar extends StatelessWidget {
-  const AAvatar({super.key, this.size = 64, this.asset = 'assets/images/avatar.png'});
+  const AAvatar({
+    super.key,
+    this.size = 64,
+    this.url,
+    this.asset = 'assets/images/avatar.png',
+  });
 
   final double size;
+  final String? url;
   final String asset;
+
+  ImageProvider get _provider {
+    final value = url;
+    if (value == null || value.isEmpty) return AssetImage(asset);
+    if (value.startsWith('data:')) {
+      return MemoryImage(base64Decode(value.substring(value.indexOf(',') + 1)));
+    }
+    return NetworkImage(value);
+  }
 
   @override
   Widget build(BuildContext context) {
     return ClipOval(
-      child: Image.asset(asset, width: size, height: size, fit: BoxFit.cover),
+      child: Image(
+        image: _provider,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) =>
+            Image.asset(asset, width: size, height: size, fit: BoxFit.cover),
+      ),
     );
   }
 }
