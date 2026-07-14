@@ -75,5 +75,21 @@ void main() {
       await repo.signOut();
       expect(repo.current, isNull);
     });
+
+    test('updateProfile сохраняет поля, пустые строки очищают', () async {
+      await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
+      await repo.updateProfile(
+        displayName: 'Новое Имя',
+        bio: 'обо мне',
+        link: 'TG:@demo',
+        phone: '',
+      );
+      final p = repo.current!.profile!;
+      expect(p.displayName, 'Новое Имя');
+      expect(p.bio, 'обо мне');
+      expect(p.link, 'TG:@demo');
+      expect(p.phone, isNull);
+      expect(p.username, 'de.panda'); // ник не трогали
+    });
   });
 }

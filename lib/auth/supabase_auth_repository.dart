@@ -47,15 +47,19 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<AuthSnapshot> _load(sb.User user) async {
     final row = await _client
         .from('profiles')
-        .select('username, display_name')
+        .select('username, display_name, bio, links, phone')
         .eq('id', user.id)
         .maybeSingle();
+    final links = (row?['links'] as List?) ?? const [];
     return AuthSnapshot(
       userId: user.id,
       email: user.email ?? '',
       profile: Profile(
         username: row?['username'] as String?,
         displayName: row?['display_name'] as String?,
+        bio: row?['bio'] as String?,
+        link: links.isEmpty ? null : links.first as String?,
+        phone: row?['phone'] as String?,
       ),
     );
   }
@@ -133,6 +137,25 @@ class SupabaseAuthRepository implements AuthRepository {
       }
       rethrow;
     }
+    _emit(await _load(user));
+  }
+
+  @override
+  Future<void> updateProfile({
+    required String displayName,
+    required String bio,
+    required String link,
+    required String phone,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw const AuthFailure('Сессия истекла — войди заново');
+    String? clean(String v) => v.trim().isEmpty ? null : v.trim();
+    await _client.from('profiles').update({
+      'display_name': clean(displayName),
+      'bio': clean(bio),
+      'links': clean(link) == null ? [] : [clean(link)],
+      'phone': clean(phone),
+    }).eq('id', user.id);
     _emit(await _load(user));
   }
 

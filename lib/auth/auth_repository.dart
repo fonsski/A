@@ -2,11 +2,20 @@ import 'dart:async';
 
 /// Профиль пользователя в системе «А?».
 class Profile {
-  const Profile({this.username, this.displayName});
+  const Profile({
+    this.username,
+    this.displayName,
+    this.bio,
+    this.link,
+    this.phone,
+  });
 
   /// null, пока пользователь не выбрал ник (шаг онбординга).
   final String? username;
   final String? displayName;
+  final String? bio;
+  final String? link; // ссылка на другую соцсеть
+  final String? phone;
 }
 
 /// Текущее состояние авторизации.
@@ -64,6 +73,14 @@ abstract class AuthRepository {
   Future<void> claimUsername({
     required String username,
     required String displayName,
+  });
+
+  /// Сохраняет поля редактора профиля (пустые строки — «очистить»).
+  Future<void> updateProfile({
+    required String displayName,
+    required String bio,
+    required String link,
+    required String phone,
   });
 }
 

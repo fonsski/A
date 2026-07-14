@@ -12,6 +12,7 @@ create table if not exists public.profiles (
   display_name text,
   bio          text,
   avatar_url   text,
+  phone        text,
   links        jsonb not null default '[]',
   created_at   timestamptz not null default now(),
   -- 3–30 символов: строчная латиница/цифры/подчёркивание,
