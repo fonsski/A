@@ -181,9 +181,11 @@ class _Bubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.65,
         ),
-        decoration: BoxDecoration(
-          color: message.mine ? colors.bubbleOut : colors.bubbleIn,
-          borderRadius: BorderRadius.circular(12),
+        // В макете у пузырей inset-тень со стороны «хвоста».
+        decoration: pillDecoration(
+          message.mine ? colors.bubbleOut : colors.bubbleIn,
+          radius: 12,
+          inset: Offset(message.mine ? -2 : 2, -2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,

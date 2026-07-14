@@ -4,24 +4,87 @@ import '../theme.dart';
 
 const kPillRadius = 36.0;
 
-/// Плашка-«пилюля» из макета: скруглённая на 36 с мягкой тенью.
-BoxDecoration pillDecoration(
+/// Плашка-«пилюля» из макета: скруглённая, с ВНУТРЕННЕЙ тенью
+/// (в Figma все эффекты — inset box-shadow, обычно 0 2 4 rgba(0,0,0,.1)).
+Decoration pillDecoration(
   Color color, {
   double radius = kPillRadius,
   Color? borderColor,
+  Offset inset = const Offset(0, 2),
 }) {
-  return BoxDecoration(
+  return InsetPillDecoration(
     color: color,
-    borderRadius: BorderRadius.circular(radius),
-    border: borderColor != null ? Border.all(color: borderColor, width: 2) : null,
-    boxShadow: const [
-      BoxShadow(
-        color: Color(0x1A000000),
-        blurRadius: 4,
-        offset: Offset(0, 2),
-      ),
-    ],
+    radius: radius,
+    borderColor: borderColor,
+    insetOffset: inset,
   );
+}
+
+/// Скруглённый прямоугольник с inset-тенью — аналог CSS
+/// `box-shadow: inset dx dy 4px rgba(0,0,0,0.1)`.
+class InsetPillDecoration extends Decoration {
+  const InsetPillDecoration({
+    required this.color,
+    required this.radius,
+    this.borderColor,
+    this.insetOffset = const Offset(0, 2),
+    this.shadowColor = const Color(0x1A000000),
+    this.blurSigma = 2,
+  });
+
+  final Color color;
+  final double radius;
+  final Color? borderColor;
+  final Offset insetOffset;
+  final Color shadowColor;
+  final double blurSigma;
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) =>
+      _InsetPillPainter(this);
+}
+
+class _InsetPillPainter extends BoxPainter {
+  _InsetPillPainter(this.decoration);
+
+  final InsetPillDecoration decoration;
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final rect = offset & configuration.size!;
+    final rrect =
+        RRect.fromRectAndRadius(rect, Radius.circular(decoration.radius));
+
+    canvas.drawRRect(rrect, Paint()..color = decoration.color);
+
+    // Inset-тень: внутри пилюли рисуем размытую «раму» — область снаружи
+    // той же пилюли, сдвинутой на offset тени.
+    canvas.save();
+    canvas.clipRRect(rrect);
+    final shadowPath = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(rect.inflate(24))
+      ..addRRect(rrect.shift(decoration.insetOffset));
+    canvas.drawPath(
+      shadowPath,
+      Paint()
+        ..color = decoration.shadowColor
+        ..maskFilter =
+            MaskFilter.blur(BlurStyle.normal, decoration.blurSigma),
+    );
+    canvas.restore();
+
+    final borderColor = decoration.borderColor;
+    if (borderColor != null) {
+      canvas.drawRRect(
+        rrect.deflate(1),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = borderColor,
+      );
+    }
+  }
 }
 
 /// Красная шапка экрана: длинная пилюля с заголовком и круглая кнопка справа.
@@ -161,17 +224,8 @@ class ABottomNav extends StatelessWidget {
                   height: 50,
                   alignment: Alignment.center,
                   decoration: i == index
-                      ? BoxDecoration(
-                          color: colors.card,
-                          borderRadius: BorderRadius.circular(32),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 4,
-                              offset: Offset(0, -2),
-                            ),
-                          ],
-                        )
+                      ? pillDecoration(colors.card,
+                          radius: 32, inset: const Offset(0, -2))
                       : null,
                   child: Image.asset(_icons[i], width: 30, height: 30),
                 ),
