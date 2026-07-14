@@ -1,6 +1,18 @@
 /// Доменные модели ленты и чатов. Чистый Dart, без зависимостей.
 library;
 
+class UserSummary {
+  const UserSummary({
+    required this.id,
+    required this.username,
+    required this.displayName,
+  });
+
+  final String id;
+  final String username;
+  final String displayName;
+}
+
 class ChatSummary {
   const ChatSummary({
     required this.id,

@@ -6,6 +6,7 @@ import '../main.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
+import 'new_chat_screen.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
@@ -48,7 +49,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              const AHeader(title: 'Чаты'),
+              AHeader(
+                title: 'Чаты',
+                circleChild: Icon(Icons.add, color: colors.bg, size: 20),
+                onTapCircle: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NewChatScreen()),
+                ),
+              ),
               const SizedBox(height: 8),
               APill(
                 padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -77,11 +84,41 @@ class _ChatsScreenState extends State<ChatsScreen> {
                       c.peerName.toLowerCase().contains(_query.toLowerCase()))
                   .toList();
               if (snapshot.hasData && chats.isEmpty) {
+                if (_query.isNotEmpty) {
+                  return Center(
+                    child: Text(
+                      'Ничего не нашлось',
+                      style:
+                          TextStyle(color: colors.textSecondary, fontSize: 16),
+                    ),
+                  );
+                }
                 return Center(
-                  child: Text(
-                    _query.isEmpty ? 'Пока нет чатов' : 'Ничего не нашлось',
-                    style:
-                        TextStyle(color: colors.textSecondary, fontSize: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Пока нет чатов',
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 16),
+                      ),
+                      const SizedBox(height: 16),
+                      APill(
+                        color: colors.accent,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const NewChatScreen()),
+                        ),
+                        child: Text(
+                          'Найти собеседника',
+                          style: TextStyle(
+                            color: colors.bg,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }

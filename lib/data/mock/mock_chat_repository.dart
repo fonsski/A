@@ -6,12 +6,14 @@ import '../models.dart';
 class _MockChat {
   _MockChat({
     required this.id,
+    required this.peerId,
     required this.peerName,
     required this.messages,
     this.unread = 0,
   });
 
   final String id;
+  final String peerId;
   final String peerName;
   final List<Message> messages;
   int unread;
@@ -42,6 +44,7 @@ class MockChatRepository implements ChatRepository {
     _chats.addAll([
       _MockChat(
         id: 'c1',
+        peerId: 'u1',
         peerName: 'Viktor Dudovich',
         unread: 2,
         messages: [
@@ -52,17 +55,27 @@ class MockChatRepository implements ChatRepository {
       ),
       _MockChat(
         id: 'c2',
+        peerId: 'u2',
         peerName: 'Viktor Vozdux',
         unread: 1,
         messages: [msg('c2', 1, 'Глянь что на стенку кинул', false)],
       ),
       _MockChat(
         id: 'c3',
+        peerId: 'u3',
         peerName: 'Trofim More',
         messages: [msg('c3', 1, 'договорились', true)],
       ),
     ]);
   }
+
+  static const _directory = [
+    UserSummary(id: 'u1', username: 'viktor.dud', displayName: 'Viktor Dudovich'),
+    UserSummary(id: 'u2', username: 'vozdux', displayName: 'Viktor Vozdux'),
+    UserSummary(id: 'u3', username: 'trofim', displayName: 'Trofim More'),
+    UserSummary(id: 'u4', username: 'de.panda', displayName: 'Denis Panda'),
+    UserSummary(id: 'u5', username: 'kirpich', displayName: 'Sasha Kirpich'),
+  ];
 
   final Duration replyDelay;
 
@@ -133,5 +146,34 @@ class MockChatRepository implements ChatRepository {
   Future<void> markRead(String chatId) async {
     _chat(chatId).unread = 0;
     _chatsController.add(_summaries);
+  }
+
+  @override
+  Future<List<UserSummary>> searchUsers(String query) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    var q = query.trim().toLowerCase();
+    if (q.startsWith('@')) q = q.substring(1);
+    if (q.isEmpty) return const [];
+    return _directory
+        .where((u) =>
+            u.username.toLowerCase().contains(q) ||
+            u.displayName.toLowerCase().contains(q))
+        .toList();
+  }
+
+  @override
+  Future<String> startDm(UserSummary peer) async {
+    for (final chat in _chats) {
+      if (chat.peerId == peer.id) return chat.id;
+    }
+    final chat = _MockChat(
+      id: 'c${_nextId++}',
+      peerId: peer.id,
+      peerName: peer.displayName,
+      messages: [],
+    );
+    _chats.add(chat);
+    _chatsController.add(_summaries);
+    return chat.id;
   }
 }
