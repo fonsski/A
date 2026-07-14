@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'models.dart';
 
 /// Контракт чатов 1:1.
@@ -10,6 +12,9 @@ abstract class ChatRepository {
   Stream<List<Message>> watchMessages(String chatId);
 
   Future<void> sendMessage(String chatId, String text);
+
+  /// Отправляет фото (Storage, бакет chat-media).
+  Future<void> sendImage(String chatId, Uint8List bytes, String mimeType);
 
   /// Сбрасывает счётчик непрочитанных.
   Future<void> markRead(String chatId);

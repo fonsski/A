@@ -40,6 +40,7 @@ class Message {
     required this.text,
     required this.sentAt,
     required this.mine,
+    this.imageUrl,
   });
 
   final String id;
@@ -47,6 +48,7 @@ class Message {
   final String text;
   final DateTime sentAt;
   final bool mine;
+  final String? imageUrl;
 }
 
 class Comment {

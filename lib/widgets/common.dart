@@ -177,6 +177,18 @@ class APill extends StatelessWidget {
   }
 }
 
+/// Провайдер картинки из URL любого вида:
+/// http(s), data-URI (мок) или `asset:путь` (демо-данные).
+ImageProvider imageProviderFor(String url) {
+  if (url.startsWith('data:')) {
+    return MemoryImage(base64Decode(url.substring(url.indexOf(',') + 1)));
+  }
+  if (url.startsWith('asset:')) {
+    return AssetImage(url.substring('asset:'.length));
+  }
+  return NetworkImage(url);
+}
+
 /// Круглый аватар: URL из Storage, data-URI (мок) или ассет-заглушка.
 class AAvatar extends StatelessWidget {
   const AAvatar({
@@ -190,20 +202,14 @@ class AAvatar extends StatelessWidget {
   final String? url;
   final String asset;
 
-  ImageProvider get _provider {
-    final value = url;
-    if (value == null || value.isEmpty) return AssetImage(asset);
-    if (value.startsWith('data:')) {
-      return MemoryImage(base64Decode(value.substring(value.indexOf(',') + 1)));
-    }
-    return NetworkImage(value);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final value = url;
     return ClipOval(
       child: Image(
-        image: _provider,
+        image: value == null || value.isEmpty
+            ? AssetImage(asset)
+            : imageProviderFor(value),
         width: size,
         height: size,
         fit: BoxFit.cover,

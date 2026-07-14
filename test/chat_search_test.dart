@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
@@ -24,6 +26,16 @@ void main() {
           isTrue);
       final messages = await repo.watchMessages(chatId).first;
       expect(messages, isEmpty);
+    });
+
+    test('sendImage добавляет фото-сообщение, в списке видно «📷 Фото»',
+        () async {
+      await repo.sendImage('c3', Uint8List.fromList([1, 2, 3]), 'image/png');
+      final messages = await repo.watchMessages('c3').first;
+      expect(messages.last.imageUrl, startsWith('data:image/png'));
+      expect(messages.last.text, isEmpty);
+      final chats = await repo.watchChats().first;
+      expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📷 Фото');
     });
 
     test('startDm повторно возвращает существующий чат', () async {

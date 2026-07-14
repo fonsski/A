@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
@@ -48,11 +49,29 @@ class _ChatScreenState extends State<ChatScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatInfoScreen(
+          chatId: widget.chatId,
           name: widget.name,
           avatarUrl: widget.avatarUrl,
         ),
       ),
     );
+  }
+
+  Future<void> _attachImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+    final bytes = await picked.readAsBytes();
+    await chatRepository.sendImage(
+      widget.chatId,
+      bytes,
+      picked.mimeType ?? 'image/jpeg',
+    );
+    _inputFocus.requestFocus();
   }
 
   void _scrollDown() {
@@ -142,7 +161,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: Container(
                       height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      padding: const EdgeInsets.only(left: 28, right: 4),
                       decoration: pillDecoration(colors.surface),
                       child: Center(
                         child: TextField(
@@ -161,6 +180,12 @@ class _ChatScreenState extends State<ChatScreen> {
                             hintStyle: TextStyle(
                               color: colors.textSecondary,
                               fontSize: 16,
+                            ),
+                            suffixIcon: IconButton(
+                              tooltip: 'Прикрепить фото',
+                              icon: Icon(Icons.image_outlined,
+                                  color: colors.textSecondary),
+                              onPressed: _attachImage,
                             ),
                           ),
                         ),
@@ -220,15 +245,33 @@ class _Bubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w300,
-                height: 1.2,
+            if (message.imageUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image(
+                  image: imageProviderFor(message.imageUrl!),
+                  width: 220,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    width: 220,
+                    height: 120,
+                    color: colors.bg,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.broken_image,
+                        color: colors.textSecondary),
+                  ),
+                ),
               ),
-            ),
+            if (message.text.isNotEmpty)
+              Text(
+                message.text,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w300,
+                  height: 1.2,
+                ),
+              ),
             const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../auth/auth_repository.dart';
+import '../feed_ranker.dart';
 import '../models.dart';
 import '../wall_repository.dart';
 
@@ -55,6 +56,30 @@ class MockWallRepository implements WallRepository {
         createdAt: now.subtract(const Duration(hours: 5)),
         agaCount: 1,
       ),
+      _MockPost(
+        id: 'p3',
+        authorName: 'Sasha Kirpich',
+        authorUsername: 'kirpich',
+        text: 'Прокачал ниву: багажник на крышу, шноркель, силовые бамперы. '
+            'Теперь можно в горы!',
+        createdAt: now.subtract(const Duration(hours: 8)),
+        agaCount: 2,
+      ),
+      _MockPost(
+        id: 'p4',
+        authorName: 'Sasha Kirpich',
+        authorUsername: 'kirpich',
+        text: 'Выбираю резину на ниву для грязи, посоветуйте что-нибудь '
+            'злое и вечное.',
+        createdAt: now.subtract(const Duration(hours: 20)),
+      ),
+      _MockPost(
+        id: 'p5',
+        authorName: 'Viktor Dudovich',
+        authorUsername: 'viktor.dud',
+        text: 'Кто со мной в казино вечером? Красиво проиграем пару тысяч.',
+        createdAt: now.subtract(const Duration(hours: 20)),
+      ),
     ]);
   }
 
@@ -84,10 +109,29 @@ class MockWallRepository implements WallRepository {
 
   void _notify() => _controller.add(_snapshot);
 
+  /// Лента «А?»: чужие посты, ранжированные по интересам
+  /// (см. feed_ranker.dart — зеркало серверного feed_for_me).
+  List<Post> _rankFeed(List<Post> posts) {
+    final liked = posts.where((p) => p.myAga).toList();
+    final corpus = liked.map((p) => p.text).join(' ');
+    final likedAuthors = liked.map((p) => p.authorUsername).toSet();
+    final scores = <String, double>{
+      for (final p in posts)
+        p.id: feedScore(
+          createdAt: p.createdAt,
+          likedAuthor: likedAuthors.contains(p.authorUsername),
+          reactionCount: p.agaCount,
+          similarity: textSimilarity(p.text, corpus),
+        ),
+    };
+    return posts.where((p) => !p.mine).toList()
+      ..sort((a, b) => scores[b.id]!.compareTo(scores[a.id]!));
+  }
+
   @override
   Stream<List<Post>> watchFeed() async* {
-    yield _snapshot;
-    yield* _controller.stream;
+    yield _rankFeed(_snapshot);
+    yield* _controller.stream.map(_rankFeed);
   }
 
   @override
