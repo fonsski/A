@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/chat_repository.dart';
+import '../data/friends_repository.dart';
 import '../data/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -206,6 +207,17 @@ class _UserTile extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            IconButton(
+              tooltip: 'В друзья',
+              icon: Icon(Icons.person_add_alt_1, color: colors.accent),
+              onPressed: () {
+                friendsRepository.sendRequest(user.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text('Заявка @${user.username} отправлена')),
+                );
+              },
             ),
             Icon(Icons.chevron_right, color: colors.accent),
           ],

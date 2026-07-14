@@ -6,10 +6,13 @@ import 'auth/mock_auth_repository.dart';
 import 'auth/supabase_auth_repository.dart';
 import 'config.dart';
 import 'data/chat_repository.dart';
+import 'data/friends_repository.dart';
 import 'data/mock/mock_chat_repository.dart';
+import 'data/mock/mock_friends_repository.dart';
 import 'data/mock/mock_wall_repository.dart';
 import 'data/privacy_repository.dart';
 import 'data/supabase/supabase_chat_repository.dart';
+import 'data/supabase/supabase_friends_repository.dart';
 import 'data/supabase/supabase_privacy_repository.dart';
 import 'data/supabase/supabase_wall_repository.dart';
 import 'data/wall_repository.dart';
@@ -33,11 +36,13 @@ Future<void> main() async {
     chatRepository = SupabaseChatRepository();
     wallRepository = SupabaseWallRepository();
     privacyRepository = SupabasePrivacyRepository();
+    friendsRepository = SupabaseFriendsRepository();
   } else {
     authRepository = MockAuthRepository();
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
     privacyRepository = MockPrivacyRepository();
+    friendsRepository = MockFriendsRepository();
   }
   await authRepository.init();
   runApp(const AMessengerApp());
