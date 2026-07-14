@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
@@ -47,7 +48,7 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<AuthSnapshot> _load(sb.User user) async {
     final row = await _client
         .from('profiles')
-        .select('username, display_name, bio, links, phone')
+        .select('username, display_name, bio, links, phone, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
     final links = (row?['links'] as List?) ?? const [];
@@ -60,6 +61,7 @@ class SupabaseAuthRepository implements AuthRepository {
         bio: row?['bio'] as String?,
         link: links.isEmpty ? null : links.first as String?,
         phone: row?['phone'] as String?,
+        avatarUrl: row?['avatar_url'] as String?,
       ),
     );
   }
@@ -156,6 +158,26 @@ class SupabaseAuthRepository implements AuthRepository {
       'links': clean(link) == null ? [] : [clean(link)],
       'phone': clean(phone),
     }).eq('id', user.id);
+    _emit(await _load(user));
+  }
+
+  @override
+  Future<void> updateAvatar(Uint8List bytes, String mimeType) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw const AuthFailure('Сессия истекла — войди заново');
+    final ext = mimeType.split('/').last;
+    final path = '${user.id}/avatar.$ext';
+    await _client.storage.from('avatars').uploadBinary(
+          path,
+          bytes,
+          fileOptions: sb.FileOptions(contentType: mimeType, upsert: true),
+        );
+    // Метка версии, чтобы кэш браузера не показывал старую картинку.
+    final url = '${_client.storage.from('avatars').getPublicUrl(path)}'
+        '?v=${DateTime.now().millisecondsSinceEpoch}';
+    await _client
+        .from('profiles')
+        .update({'avatar_url': url}).eq('id', user.id);
     _emit(await _load(user));
   }
 

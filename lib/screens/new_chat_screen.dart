@@ -57,7 +57,11 @@ class _NewChatScreenState extends State<NewChatScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => ChatScreen(chatId: chatId, name: user.displayName),
+        builder: (_) => ChatScreen(
+          chatId: chatId,
+          name: user.displayName,
+          avatarUrl: user.avatarUrl,
+        ),
       ),
     );
   }
@@ -177,7 +181,7 @@ class _UserTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 13),
         child: Row(
           children: [
-            const AAvatar(size: 48),
+            AAvatar(size: 48, url: user.avatarUrl),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

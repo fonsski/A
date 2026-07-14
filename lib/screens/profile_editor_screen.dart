@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../auth/auth_repository.dart';
 import '../auth/username.dart';
@@ -41,6 +42,36 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      await authRepository.updateAvatar(
+        bytes,
+        picked.mimeType ?? 'image/jpeg',
+      );
+      if (mounted) {
+        setState(() {}); // перерисовать аватар в шапке
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Аватар обновлён')));
+      }
+    } on AuthFailure catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _save() async {
@@ -137,7 +168,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                       colors.surface,
                       borderColor: colors.accent,
                     ),
-                    child: const AAvatar(size: 32),
+                    child: AAvatar(size: 32, url: _profile.avatarUrl),
                   ),
                 ],
               ),
@@ -168,12 +199,15 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Container(
-                            width: 48,
-                            height: 48,
-                            padding: const EdgeInsets.all(12),
-                            decoration: pillDecoration(colors.surface),
-                            child: Image.asset('assets/images/react_3.png'),
+                          GestureDetector(
+                            onTap: _busy ? null : _pickAvatar,
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              padding: const EdgeInsets.all(12),
+                              decoration: pillDecoration(colors.surface),
+                              child: Image.asset('assets/images/react_3.png'),
+                            ),
                           ),
                         ],
                       ),

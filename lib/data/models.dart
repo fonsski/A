@@ -6,11 +6,13 @@ class UserSummary {
     required this.id,
     required this.username,
     required this.displayName,
+    this.avatarUrl,
   });
 
   final String id;
   final String username;
   final String displayName;
+  final String? avatarUrl;
 }
 
 class ChatSummary {
@@ -20,6 +22,7 @@ class ChatSummary {
     required this.lastText,
     required this.lastAt,
     required this.unread,
+    this.peerAvatarUrl,
   });
 
   final String id;
@@ -27,6 +30,7 @@ class ChatSummary {
   final String lastText;
   final DateTime? lastAt;
   final int unread;
+  final String? peerAvatarUrl;
 }
 
 class Message {
@@ -51,12 +55,14 @@ class Comment {
     required this.authorName,
     required this.text,
     this.imageAsset,
+    this.authorAvatarUrl,
   });
 
   final String id;
   final String authorName;
   final String text;
   final String? imageAsset;
+  final String? authorAvatarUrl;
 }
 
 class Post {
@@ -70,6 +76,7 @@ class Post {
     required this.myAga,
     required this.mine,
     this.comments = const <Comment>[],
+    this.authorAvatarUrl,
   });
 
   final String id;
@@ -81,6 +88,7 @@ class Post {
   final bool myAga;
   final bool mine;
   final List<Comment> comments;
+  final String? authorAvatarUrl;
 }
 
 String formatTime(DateTime? time) {

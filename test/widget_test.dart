@@ -13,8 +13,10 @@ import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
 import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
+import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
+import 'package:a_messenger/widgets/common.dart';
 
 void main() {
   setUpAll(() {
@@ -85,7 +87,8 @@ void main() {
     expect(find.byType(HomeShell), findsOneWidget);
   });
 
-  testWidgets('чат: отправка сообщения и автоответ', (tester) async {
+  testWidgets('чат: отправка сообщения, автоответ и фокус на поле ввода',
+      (tester) async {
     // Сессия сохранилась с прошлого теста — сразу HomeShell.
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
@@ -99,9 +102,47 @@ void main() {
     await tester.pump();
     expect(find.text('привет, это тест'), findsOneWidget);
 
+    // Фокус не потерян — можно печатать следующее сообщение сразу.
+    final input = tester.widget<TextField>(find.byType(TextField).last);
+    expect(input.focusNode!.hasFocus, isTrue);
+
     // Демо-ответ собеседника приходит через ~1 секунду.
     await tester.pump(const Duration(seconds: 2));
     expect(find.text('А?'), findsWidgets);
+  });
+
+  testWidgets('инфо о чате: открытие по шапке, плашка звонка сворачивается',
+      (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+    // Тап по шапке чата открывает развёрнутую информацию.
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChatInfoScreen), findsOneWidget);
+    expect(find.text('в сети'), findsOneWidget);
+    expect(find.text('Звонок'), findsOneWidget);
+
+    // «Звонок» разворачивает плашку Аудио/Видео (group 10).
+    await tester.tap(find.text('Звонок'));
+    await tester.pumpAndSettle();
+    expect(find.text('Аудио'), findsOneWidget);
+    expect(find.text('Видео'), findsWidgets); // кнопка + вкладка медиа
+    expect(find.text('Звонок'), findsNothing);
+
+    // Кнопка с аватаром посередине сворачивает обратно.
+    await tester.tap(find.byType(AAvatar).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Звонок'), findsOneWidget);
+    expect(find.text('Аудио'), findsNothing);
+
+    // «Чат» возвращает в переписку.
+    await tester.tap(find.text('Чат'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChatInfoScreen), findsNothing);
+    expect(find.text('Сообщение'), findsOneWidget);
   });
 
   testWidgets('стенка: новый пост появляется в «Моё!»', (tester) async {

@@ -4,12 +4,19 @@ import '../data/chat_repository.dart';
 import '../data/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'chat_info_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.chatId, required this.name});
+  const ChatScreen({
+    super.key,
+    required this.chatId,
+    required this.name,
+    this.avatarUrl,
+  });
 
   final String chatId;
   final String name;
+  final String? avatarUrl;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -18,11 +25,13 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
+  final _inputFocus = FocusNode();
 
   @override
   void dispose() {
     _controller.dispose();
     _scroll.dispose();
+    _inputFocus.dispose();
     super.dispose();
   }
 
@@ -31,6 +40,19 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
     chatRepository.sendMessage(widget.chatId, text);
     _controller.clear();
+    // Не теряем фокус — чаттинг без лишних тапов.
+    _inputFocus.requestFocus();
+  }
+
+  void _openInfo() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatInfoScreen(
+          name: widget.name,
+          avatarUrl: widget.avatarUrl,
+        ),
+      ),
+    );
   }
 
   void _scrollDown() {
@@ -66,27 +88,31 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: pillDecoration(colors.surface),
-                      child: Row(
-                        children: [
-                          const AAvatar(size: 40),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.name,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                    child: GestureDetector(
+                      onTap: _openInfo,
+                      child: Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: pillDecoration(colors.surface),
+                        child: Row(
+                          children: [
+                            AAvatar(size: 40, url: widget.avatarUrl),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.name,
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          Icon(Icons.more_vert, color: colors.accent, size: 20),
-                          const SizedBox(width: 8),
-                        ],
+                            Icon(Icons.more_vert,
+                                color: colors.accent, size: 20),
+                            const SizedBox(width: 8),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -118,20 +144,24 @@ class _ChatScreenState extends State<ChatScreen> {
                       height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       decoration: pillDecoration(colors.surface),
-                      child: TextField(
-                        controller: _controller,
-                        onSubmitted: (_) => _send(),
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 16,
-                        ),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          isCollapsed: true,
-                          hintText: 'Сообщение',
-                          hintStyle: TextStyle(
-                            color: colors.textSecondary,
+                      child: Center(
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _inputFocus,
+                          onSubmitted: (_) => _send(),
+                          textAlignVertical: TextAlignVertical.center,
+                          style: TextStyle(
+                            color: colors.textPrimary,
                             fontSize: 16,
+                          ),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            isCollapsed: true,
+                            hintText: 'Сообщение',
+                            hintStyle: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),

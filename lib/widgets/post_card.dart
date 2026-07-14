@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../theme.dart';
+import 'common.dart';
 
 /// Запись на стенке: автор, текст, «Ага!», комментарии.
 class PostCard extends StatelessWidget {
@@ -35,14 +36,7 @@ class PostCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipOval(
-            child: Image.asset(
-              'assets/images/avatar.png',
-              width: 64,
-              height: 64,
-              fit: BoxFit.cover,
-            ),
-          ),
+          AAvatar(size: 64, url: post.authorAvatarUrl),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -163,14 +157,7 @@ class _CommentTile extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipOval(
-          child: Image.asset(
-            'assets/images/avatar.png',
-            width: 32,
-            height: 32,
-            fit: BoxFit.cover,
-          ),
-        ),
+        AAvatar(size: 32, url: comment.authorAvatarUrl),
         const SizedBox(width: 8),
         Expanded(
           child: Column(

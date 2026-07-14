@@ -19,6 +19,7 @@ import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
 import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
+import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/chat_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/new_chat_screen.dart';
@@ -172,6 +173,18 @@ void main() {
   testWidgets('pick username', (tester) async {
     await prepare(tester, const PickUsernameScreen());
     await _capture(tester, '14_pick_username');
+  });
+
+  testWidgets('chat info', (tester) async {
+    await prepare(tester, const ChatInfoScreen(name: 'Viktor Dudovich'));
+    await _capture(tester, '18_chat_info');
+  });
+
+  testWidgets('chat info call bar', (tester) async {
+    await prepare(tester, const ChatInfoScreen(name: 'Viktor Dudovich'));
+    await tester.tap(find.text('Звонок'));
+    await tester.pumpAndSettle();
+    await _capture(tester, '19_chat_info_call');
   });
 
   testWidgets('new chat search', (tester) async {
