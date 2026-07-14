@@ -1,0 +1,51 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "a-messenger-web",
+      "runtimeExecutable": "C:\\Users\\fon\\flutter\\bin\\flutter.bat",
+      "runtimeArgs": ["run", "-d", "web-server", "--web-port=8123"],
+      "port": 8123
+    },
+    {
+      "name": "a-messenger-web-supabase",
+      "runtimeExecutable": "C:\\Users\\fon\\flutter\\bin\\flutter.bat",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port=8124",
+        "--dart-define=SUPABASE_URL=https://lsxrgieowdvoaobpbrit.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_VgsubUVvHY18lZ_dfCJQvw_yk78C2Mj"
+      ],
+      "port": 8124
+    },
+    {
+      "name": "a-messenger-release-supabase",
+      "runtimeExecutable": "C:\\Users\\fon\\flutter\\bin\\flutter.bat",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--release",
+        "--web-port=8124",
+        "--dart-define=SUPABASE_URL=https://lsxrgieowdvoaobpbrit.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_VgsubUVvHY18lZ_dfCJQvw_yk78C2Mj"
+      ],
+      "port": 8124
+    },
+    {
+      "name": "a-messenger-chrome-supabase",
+      "runtimeExecutable": "C:\\Users\\fon\\flutter\\bin\\flutter.bat",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "chrome",
+        "--web-port=8125",
+        "--dart-define=SUPABASE_URL=https://lsxrgieowdvoaobpbrit.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_VgsubUVvHY18lZ_dfCJQvw_yk78C2Mj"
+      ],
+      "port": 8125
+    }
+  ]
+}

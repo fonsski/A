@@ -1,0 +1,225 @@
+import 'package:flutter/material.dart';
+
+import '../data/chat_repository.dart';
+import '../data/models.dart';
+import '../theme.dart';
+import '../widgets/common.dart';
+
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key, required this.chatId, required this.name});
+
+  final String chatId;
+  final String name;
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final _controller = TextEditingController();
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    chatRepository.sendMessage(widget.chatId, text);
+    _controller.clear();
+  }
+
+  void _scrollDown() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 12, 13, 0),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      chatRepository.markRead(widget.chatId);
+                      Navigator.of(context).pop();
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: pillDecoration(colors.surface),
+                      child: Icon(Icons.arrow_back, color: colors.accent),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: pillDecoration(colors.surface),
+                      child: Row(
+                        children: [
+                          const AAvatar(size: 40),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.name,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.more_vert, color: colors.accent, size: 20),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<List<Message>>(
+                stream: chatRepository.watchMessages(widget.chatId),
+                builder: (context, snapshot) {
+                  final messages = snapshot.data ?? const <Message>[];
+                  _scrollDown();
+                  return ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.fromLTRB(13, 16, 13, 16),
+                    itemCount: messages.length,
+                    itemBuilder: (context, i) =>
+                        _Bubble(message: messages[i]),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 0, 13, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      decoration: pillDecoration(colors.surface),
+                      child: TextField(
+                        controller: _controller,
+                        onSubmitted: (_) => _send(),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 16,
+                        ),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          isCollapsed: true,
+                          hintText: 'Сообщение',
+                          hintStyle: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _send,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: pillDecoration(colors.accent),
+                      child: Text(
+                        'А?',
+                        style: TextStyle(
+                          color: colors.bg,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.message});
+
+  final Message message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Align(
+      alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.65,
+        ),
+        decoration: BoxDecoration(
+          color: message.mine ? colors.bubbleOut : colors.bubbleIn,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              message.text,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w300,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  formatTime(message.sentAt),
+                  style: TextStyle(
+                    color: message.mine ? colors.accent : colors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+                if (message.mine) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    'АА',
+                    style: TextStyle(color: colors.accent, fontSize: 10),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
