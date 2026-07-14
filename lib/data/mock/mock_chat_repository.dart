@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../chat_repository.dart';
 import '../models.dart';
+import 'mock_directory.dart';
 
 class _MockChat {
   _MockChat({
@@ -69,13 +70,7 @@ class MockChatRepository implements ChatRepository {
     ]);
   }
 
-  static const _directory = [
-    UserSummary(id: 'u1', username: 'viktor.dud', displayName: 'Viktor Dudovich'),
-    UserSummary(id: 'u2', username: 'vozdux', displayName: 'Viktor Vozdux'),
-    UserSummary(id: 'u3', username: 'trofim', displayName: 'Trofim More'),
-    UserSummary(id: 'u4', username: 'de.panda', displayName: 'Denis Panda'),
-    UserSummary(id: 'u5', username: 'kirpich', displayName: 'Sasha Kirpich'),
-  ];
+  static const _directory = mockUsers;
 
   final Duration replyDelay;
 

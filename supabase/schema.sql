@@ -125,9 +125,24 @@ returns boolean language sql stable security definer set search_path = public as
 $$;
 
 alter table public.friendships enable row level security;
-create policy friendships_own on public.friendships
-  for all using (auth.uid() in (user_a, user_b))
-  with check (auth.uid() = requested_by);
+
+create policy friendships_select on public.friendships
+  for select using (auth.uid() in (user_a, user_b));
+
+create policy friendships_insert on public.friendships
+  for insert with check (
+    auth.uid() = requested_by
+    and auth.uid() in (user_a, user_b)
+    and status = 'pending');
+
+-- Принять может только вторая сторона (не автор заявки).
+create policy friendships_accept on public.friendships
+  for update
+  using (auth.uid() in (user_a, user_b) and auth.uid() <> requested_by)
+  with check (status = 'accepted');
+
+create policy friendships_delete on public.friendships
+  for delete using (auth.uid() in (user_a, user_b));
 
 -- ── Настройки приватности ──────────────────────────────────────────────────
 create table if not exists public.privacy_settings (

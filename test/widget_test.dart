@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:a_messenger/auth/auth_repository.dart';
 import 'package:a_messenger/auth/mock_auth_repository.dart';
 import 'package:a_messenger/data/chat_repository.dart';
+import 'package:a_messenger/data/friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
+import 'package:a_messenger/data/mock/mock_friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/wall_repository.dart';
@@ -25,6 +27,7 @@ void main() {
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
     privacyRepository = MockPrivacyRepository();
+    friendsRepository = MockFriendsRepository();
   });
 
   testWidgets('splash → экран входа (сессии нет)', (tester) async {
@@ -221,6 +224,31 @@ void main() {
     expect(find.byType(ProfileEditorScreen), findsNothing);
     expect(find.text('Тестовое Имя'), findsOneWidget);
     expect(authRepository.current!.profile!.displayName, 'Тестовое Имя');
+  });
+
+  testWidgets('друзья: принять заявку из профиля', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // Профиль → счётчик друзей с бейджем заявки → экран друзей.
+    final profileIcon = find.byWidgetPredicate((w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == 'assets/images/nav_profile.png');
+    await tester.tap(profileIcon);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('заявка'), findsOneWidget);
+    await tester.tap(find.textContaining('друг'));
+    await tester.pumpAndSettle();
+
+    // Trofim More во входящих — принимаем.
+    expect(find.text('Заявки'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pumpAndSettle();
+    expect(find.text('Заявки'), findsNothing);
+    // Теперь друзей двое: Viktor Dudovich и Trofim More.
+    expect(find.text('Trofim More'), findsOneWidget);
+    expect(find.text('Viktor Dudovich'), findsOneWidget);
   });
 
   testWidgets('приватность: выбор сохраняется в репозиторий', (tester) async {

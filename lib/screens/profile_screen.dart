@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../auth/auth_repository.dart';
+import '../data/friends_repository.dart';
 import '../data/models.dart';
 import '../data/wall_repository.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/post_card.dart';
+import 'friends_screen.dart';
 import 'profile_editor_screen.dart';
 import 'wall_screen.dart' show showCommentSheet;
+
+String _friendsLabel(int n) {
+  if (n % 10 == 1 && n % 100 != 11) return '$n друг';
+  if ([2, 3, 4].contains(n % 10) && ![12, 13, 14].contains(n % 100)) {
+    return '$n друга';
+  }
+  return '$n друзей';
+}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.onOpenWall});
@@ -64,12 +74,39 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            '143 подписчика',
-                            style: TextStyle(
-                              color: colors.textSecondary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen()),
+                            ),
+                            child: StreamBuilder<List<FriendEntry>>(
+                              stream: friendsRepository.watchFriends(),
+                              builder: (context, snapshot) {
+                                final entries =
+                                    snapshot.data ?? const <FriendEntry>[];
+                                final friends = entries
+                                    .where((e) =>
+                                        e.status == FriendStatus.friends)
+                                    .length;
+                                final requests = entries
+                                    .where((e) =>
+                                        e.status == FriendStatus.incoming)
+                                    .length;
+                                var label = _friendsLabel(friends);
+                                if (requests > 0) {
+                                  label += ' · $requests заявк${requests == 1 ? 'а' : 'и'}';
+                                }
+                                return Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: requests > 0
+                                        ? colors.accent
+                                        : colors.textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],

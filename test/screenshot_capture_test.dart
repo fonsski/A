@@ -11,7 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:a_messenger/auth/auth_repository.dart';
 import 'package:a_messenger/auth/mock_auth_repository.dart';
 import 'package:a_messenger/data/chat_repository.dart';
+import 'package:a_messenger/data/friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
+import 'package:a_messenger/data/mock/mock_friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/wall_repository.dart';
@@ -21,6 +23,7 @@ import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
 import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/chat_screen.dart';
+import 'package:a_messenger/screens/friends_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/new_chat_screen.dart';
 import 'package:a_messenger/screens/new_post_screen.dart';
@@ -71,6 +74,7 @@ void main() {
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
     privacyRepository = MockPrivacyRepository();
+    friendsRepository = MockFriendsRepository();
     Directory(_outDir).createSync(recursive: true);
     final fontData = rootBundle.load('assets/fonts/RobotoFlex.ttf');
     final loader = FontLoader('RobotoFlex')..addFont(fontData);
@@ -185,6 +189,11 @@ void main() {
     await tester.tap(find.text('Звонок'));
     await tester.pumpAndSettle();
     await _capture(tester, '19_chat_info_call');
+  });
+
+  testWidgets('friends', (tester) async {
+    await prepare(tester, const FriendsScreen());
+    await _capture(tester, '20_friends');
   });
 
   testWidgets('new chat search', (tester) async {
