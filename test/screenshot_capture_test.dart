@@ -20,6 +20,7 @@ import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
 import 'package:a_messenger/screens/chat_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
+import 'package:a_messenger/screens/new_chat_screen.dart';
 import 'package:a_messenger/screens/new_post_screen.dart';
 import 'package:a_messenger/screens/privacy_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
@@ -169,6 +170,13 @@ void main() {
   testWidgets('pick username', (tester) async {
     await prepare(tester, const PickUsernameScreen());
     await _capture(tester, '14_pick_username');
+  });
+
+  testWidgets('new chat search', (tester) async {
+    await prepare(tester, const NewChatScreen());
+    await tester.enterText(find.byType(TextField).first, 'viktor');
+    await tester.pump(const Duration(milliseconds: 600));
+    await _capture(tester, '17_new_chat_search');
   });
 }
 

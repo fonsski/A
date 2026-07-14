@@ -88,4 +88,37 @@ class SupabaseChatRepository implements ChatRepository {
     await _client.rpc<void>('mark_read', params: {'chat': chatId});
     await _refreshChats();
   }
+
+  @override
+  Future<List<UserSummary>> searchUsers(String query) async {
+    var q = query.trim();
+    if (q.startsWith('@')) q = q.substring(1);
+    // PostgREST-шаблоны в пользовательском вводе не нужны.
+    q = q.replaceAll('%', '').replaceAll('_', r'\_').replaceAll(',', '');
+    if (q.isEmpty) return const [];
+    final rows = await _client
+        .from('profiles')
+        .select('id, username, display_name')
+        .not('username', 'is', null)
+        .neq('id', _uid)
+        .or('username.ilike.%$q%,display_name.ilike.%$q%')
+        .limit(20);
+    return [
+      for (final r in rows)
+        UserSummary(
+          id: r['id'] as String,
+          username: r['username'] as String,
+          displayName:
+              (r['display_name'] ?? r['username']) as String,
+        ),
+    ];
+  }
+
+  @override
+  Future<String> startDm(UserSummary peer) async {
+    final chatId =
+        await _client.rpc<String>('start_dm', params: {'peer': peer.id});
+    await _refreshChats();
+    return chatId;
+  }
 }

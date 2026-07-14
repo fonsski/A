@@ -13,6 +13,12 @@ abstract class ChatRepository {
 
   /// Сбрасывает счётчик непрочитанных.
   Future<void> markRead(String chatId);
+
+  /// Поиск людей по @нику или имени (без текущего пользователя).
+  Future<List<UserSummary>> searchUsers(String query);
+
+  /// Возвращает id диалога с [peer]: существующего или созданного.
+  Future<String> startDm(UserSummary peer);
 }
 
 /// Назначается в main() до runApp (мок или Supabase).

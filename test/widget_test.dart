@@ -122,4 +122,34 @@ void main() {
     // Вернулись на стенку, пост виден в «Моё!».
     expect(find.text('Мой первый пост!'), findsOneWidget);
   });
+
+  testWidgets('поиск человека → новый чат → сообщение', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // «+» в шапке чатов открывает поиск.
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.text('Новый чат'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'panda');
+    await tester.pump(const Duration(milliseconds: 600)); // debounce + поиск
+    await tester.pumpAndSettle();
+    expect(find.text('@de.panda'), findsOneWidget);
+
+    await tester.tap(find.text('Denis Panda'));
+    await tester.pumpAndSettle();
+
+    // Открылся пустой диалог, отправляем первое сообщение.
+    await tester.enterText(find.byType(TextField).last, 'привет, панда');
+    await tester.tap(find.text('А?'));
+    await tester.pump();
+    expect(find.text('привет, панда'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2)); // демо-ответ
+
+    // Чат появился в списке.
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    expect(find.text('Denis Panda'), findsOneWidget);
+  });
 }
