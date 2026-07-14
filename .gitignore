@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local tool configs with secrets
+.mcp.json
+.claude/settings.local.json
+
