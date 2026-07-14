@@ -16,8 +16,15 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<AuthSnapshot?>(
+      stream: authRepository.snapshots,
+      initialData: authRepository.current,
+      builder: (context, snapshot) => _build(context, snapshot.data?.profile),
+    );
+  }
+
+  Widget _build(BuildContext context, Profile? profile) {
     final colors = context.colors;
-    final profile = authRepository.current?.profile;
     final username = profile?.username ?? '';
     final displayName =
         (profile?.displayName?.isNotEmpty ?? false) ? profile!.displayName! : username;

@@ -10,6 +10,9 @@ class _MockUser {
   bool confirmed = false;
   String? username;
   String? displayName;
+  String? bio;
+  String? link;
+  String? phone;
 }
 
 /// Локальный бэкенд для разработки без Supabase: всё в памяти,
@@ -93,7 +96,13 @@ class MockAuthRepository implements AuthRepository {
   AuthSnapshot _snapshotOf(_MockUser user) => AuthSnapshot(
         userId: user.email,
         email: user.email,
-        profile: Profile(username: user.username, displayName: user.displayName),
+        profile: Profile(
+          username: user.username,
+          displayName: user.displayName,
+          bio: user.bio,
+          link: user.link,
+          phone: user.phone,
+        ),
       );
 
   @override
@@ -126,6 +135,24 @@ class MockAuthRepository implements AuthRepository {
     final user = _users[snapshot.email]!;
     user.username = value;
     user.displayName = displayName.trim().isEmpty ? value : displayName.trim();
+    _emit(_snapshotOf(user));
+  }
+
+  @override
+  Future<void> updateProfile({
+    required String displayName,
+    required String bio,
+    required String link,
+    required String phone,
+  }) async {
+    final snapshot = _current;
+    if (snapshot == null) throw const AuthFailure('Сессия истекла — войди заново');
+    String? clean(String v) => v.trim().isEmpty ? null : v.trim();
+    final user = _users[snapshot.email]!
+      ..displayName = clean(displayName)
+      ..bio = clean(bio)
+      ..link = clean(link)
+      ..phone = clean(phone);
     _emit(_snapshotOf(user));
   }
 }

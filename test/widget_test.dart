@@ -14,6 +14,7 @@ import 'package:a_messenger/screens/auth/login_screen.dart';
 import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
+import 'package:a_messenger/screens/profile_editor_screen.dart';
 
 void main() {
   setUpAll(() {
@@ -153,6 +154,32 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     expect(find.text('Denis Panda'), findsOneWidget);
+  });
+
+  testWidgets('редактор профиля: имя сохраняется и видно в профиле',
+      (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    final profileIcon = find.byWidgetPredicate((w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == 'assets/images/nav_profile.png');
+    await tester.tap(profileIcon);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Редактировать'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'Тестовое Имя');
+    await tester.ensureVisible(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+
+    // Редактор закрылся, в профиле новое имя (и оно же в репозитории).
+    expect(find.byType(ProfileEditorScreen), findsNothing);
+    expect(find.text('Тестовое Имя'), findsOneWidget);
+    expect(authRepository.current!.profile!.displayName, 'Тестовое Имя');
   });
 
   testWidgets('приватность: выбор сохраняется в репозиторий', (tester) async {
