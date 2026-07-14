@@ -194,8 +194,10 @@ create table if not exists public.messages (
   id         bigint generated always as identity primary key,
   chat_id    uuid not null references public.chats (id) on delete cascade,
   author_id  uuid not null references public.profiles (id),
-  body       text not null check (length(body) between 1 and 4000),
-  created_at timestamptz not null default now()
+  body       text not null,
+  image_url  text,
+  created_at timestamptz not null default now(),
+  check (image_url is not null or length(body) between 1 and 4000)
 );
 create index if not exists messages_chat_idx on public.messages (chat_id, id);
 
@@ -334,6 +336,64 @@ create policy reactions_read on public.reactions for select using (
 
 create policy reactions_own on public.reactions
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ── Рекомендательная лента (см. fix_005) ──────────────────────────────────
+create extension if not exists pg_trgm;
+
+create or replace function public.feed_for_me(limit_count int default 50)
+returns table (post_id uuid, score real)
+language sql stable security invoker as $$
+  with my_likes as (
+    select p.* from public.posts p
+    join public.reactions r on r.post_id = p.id
+    where r.user_id = auth.uid()
+  ),
+  corpus as (
+    select left(coalesce(string_agg(body, ' '), ''), 4000) as text
+    from my_likes
+  ),
+  liked_authors as (select distinct author_id from my_likes)
+  select
+    p.id,
+    (
+      exp(-extract(epoch from now() - p.created_at) / 172800.0)
+      + 2.0 * (public.are_friends(p.author_id, auth.uid()))::int
+      + 1.5 * (p.author_id in (select author_id from liked_authors))::int
+      + 0.5 * ln(1 + (select count(*) from public.reactions r2
+                       where r2.post_id = p.id))
+      + 2.0 * similarity(left(p.body, 1000), (select text from corpus))
+    )::real as score
+  from public.posts p
+  where p.author_id <> auth.uid()
+    and p.wall_owner_id <> auth.uid()
+  order by score desc
+  limit limit_count;
+$$;
+
+-- ── Storage: аватары и медиа чатов ─────────────────────────────────────────
+insert into storage.buckets (id, name, public) values
+  ('avatars', 'avatars', true),
+  ('chat-media', 'chat-media', true)
+on conflict (id) do nothing;
+
+create policy avatars_read on storage.objects
+  for select using (bucket_id = 'avatars');
+create policy avatars_insert_own on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars'
+              and (storage.foldername(name))[1] = auth.uid()::text);
+create policy avatars_update_own on storage.objects
+  for update to authenticated
+  using (bucket_id = 'avatars'
+         and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy chat_media_read on storage.objects
+  for select using (bucket_id = 'chat-media');
+create policy chat_media_insert on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'chat-media'
+    and public.is_chat_member(((storage.foldername(name))[1])::uuid, auth.uid()));
 
 -- ── Realtime ───────────────────────────────────────────────────────────────
 alter publication supabase_realtime

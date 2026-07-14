@@ -180,7 +180,10 @@ void main() {
   });
 
   testWidgets('chat info', (tester) async {
-    await prepare(tester, const ChatInfoScreen(name: 'Viktor Dudovich'));
+    await prepare(
+      tester,
+      const ChatInfoScreen(chatId: 'c1', name: 'Viktor Dudovich'),
+    );
     await _capture(tester, '18_chat_info');
   });
 

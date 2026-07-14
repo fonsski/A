@@ -24,10 +24,25 @@ class SupabaseWallRepository implements WallRepository {
   final SupabaseClient _client;
   final _controller = StreamController<List<Post>>.broadcast();
   List<Post>? _last;
+  var _feedScores = <String, double>{};
 
   String get _uid => _client.auth.currentUser!.id;
 
   Future<void> _refresh() async {
+    // Скоры рекомендаций считает БД (feed_for_me, см. fix_005).
+    try {
+      final scored = await _client.rpc<List<dynamic>>('feed_for_me');
+      _feedScores = {
+        for (final r in scored.cast<Map<String, dynamic>>())
+          r['post_id'] as String: (r['score'] as num).toDouble(),
+      };
+    } on PostgrestException {
+      _feedScores = {}; // функция ещё не применена — лента без ранжирования
+    }
+    await _refreshPosts();
+  }
+
+  Future<void> _refreshPosts() async {
     final rows = await _client.from('posts').select('''
           id, wall_owner_id, author_id, body, created_at,
           author:profiles!posts_author_id_fkey(username, display_name, avatar_url),
@@ -74,11 +89,20 @@ class SupabaseWallRepository implements WallRepository {
     );
   }
 
+  /// Лента «А?»: чужие посты по убыванию скора рекомендаций.
+  List<Post> _rankedFeed(List<Post> posts) {
+    return posts.where((p) => !p.mine).toList()
+      ..sort((a, b) {
+        final cmp = (_feedScores[b.id] ?? 0).compareTo(_feedScores[a.id] ?? 0);
+        return cmp != 0 ? cmp : b.createdAt.compareTo(a.createdAt);
+      });
+  }
+
   @override
   Stream<List<Post>> watchFeed() async* {
-    if (_last != null) yield _last!;
+    if (_last != null) yield _rankedFeed(_last!);
     unawaited(_refresh());
-    yield* _controller.stream;
+    yield* _controller.stream.map(_rankedFeed);
   }
 
   @override

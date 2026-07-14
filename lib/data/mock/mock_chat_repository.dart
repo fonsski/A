@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import '../chat_repository.dart';
 import '../models.dart';
@@ -24,7 +26,10 @@ class _MockChat {
         peerName: peerName,
         lastText: messages.isEmpty
             ? ''
-            : (messages.last.mine ? 'Me: ' : '') + messages.last.text,
+            : (messages.last.mine ? 'Me: ' : '') +
+                (messages.last.imageUrl != null
+                    ? '📷 Фото'
+                    : messages.last.text),
         lastAt: messages.isEmpty ? null : messages.last.sentAt,
         unread: unread,
       );
@@ -52,6 +57,14 @@ class MockChatRepository implements ChatRepository {
           msg('c1', 1, 'hi brother, borrow a couple thousand at the casino',
               false),
           msg('c1', 2, 'Whatsup brother', true),
+          Message(
+            id: 'c1-3',
+            chatId: 'c1',
+            text: '',
+            sentAt: now.subtract(const Duration(minutes: 60)),
+            mine: false,
+            imageUrl: 'asset:assets/images/media.png',
+          ),
         ],
       ),
       _MockChat(
@@ -135,6 +148,20 @@ class MockChatRepository implements ChatRepository {
       ));
       _notify(chatId);
     });
+  }
+
+  @override
+  Future<void> sendImage(
+      String chatId, Uint8List bytes, String mimeType) async {
+    _chat(chatId).messages.add(Message(
+          id: 'm${_nextId++}',
+          chatId: chatId,
+          text: '',
+          sentAt: DateTime.now(),
+          mine: true,
+          imageUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
+        ));
+    _notify(chatId);
   }
 
   @override

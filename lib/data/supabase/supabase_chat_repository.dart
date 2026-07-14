@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,7 +39,10 @@ class SupabaseChatRepository implements ChatRepository {
         ChatSummary(
           id: r['chat_id'] as String,
           peerName: (r['peer_name'] ?? 'Чат') as String,
-          lastText: (r['last_body'] ?? '') as String,
+          // Пустой body при непустом чате — это фото (constraint в БД).
+          lastText: r['last_at'] != null && ((r['last_body'] ?? '') as String).isEmpty
+              ? '📷 Фото'
+              : (r['last_body'] ?? '') as String,
           lastAt: r['last_at'] == null
               ? null
               : DateTime.parse(r['last_at'] as String),
@@ -71,6 +75,7 @@ class SupabaseChatRepository implements ChatRepository {
                   text: r['body'] as String,
                   sentAt: DateTime.parse(r['created_at'] as String),
                   mine: r['author_id'] == _uid,
+                  imageUrl: r['image_url'] as String?,
                 ),
             ]);
   }
@@ -81,6 +86,26 @@ class SupabaseChatRepository implements ChatRepository {
       'chat_id': chatId,
       'author_id': _uid,
       'body': text,
+    });
+  }
+
+  @override
+  Future<void> sendImage(
+      String chatId, Uint8List bytes, String mimeType) async {
+    final ext = mimeType.split('/').last;
+    final path =
+        '$chatId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await _client.storage.from('chat-media').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: mimeType),
+        );
+    final url = _client.storage.from('chat-media').getPublicUrl(path);
+    await _client.from('messages').insert({
+      'chat_id': chatId,
+      'author_id': _uid,
+      'body': '',
+      'image_url': url,
     });
   }
 

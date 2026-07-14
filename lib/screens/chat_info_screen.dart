@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_repository.dart';
+import '../data/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
 enum _MediaTab { photo, video, files }
 
 /// Развёрнутая информация о чате (второй фрейм "Chat" в макете):
-/// большой аватар, статус, кнопки Чат/Звук/Звонок и медиа собеседника.
+/// большой аватар, статус, кнопки Чат/Звук/Звонок и медиа переписки.
 /// «Звонок» разворачивает плашку Аудио/Видео (group 10), кнопка
 /// с аватаром посередине сворачивает её обратно.
 class ChatInfoScreen extends StatefulWidget {
-  const ChatInfoScreen({super.key, required this.name, this.avatarUrl});
+  const ChatInfoScreen({
+    super.key,
+    required this.name,
+    this.chatId,
+    this.avatarUrl,
+  });
 
   final String name;
+  final String? chatId;
   final String? avatarUrl;
 
   @override
@@ -241,18 +249,55 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         ),
       );
     }
-    return GridView.count(
-      padding: const EdgeInsets.only(bottom: 16),
-      crossAxisCount: 2,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      children: [
-        for (var i = 0; i < 6; i++)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset('assets/images/media.png', fit: BoxFit.cover),
+    final chatId = widget.chatId;
+    if (chatId == null) {
+      return Center(
+        child: Text(
+          'Фото пока нет',
+          style: TextStyle(color: colors.textSecondary, fontSize: 16),
+        ),
+      );
+    }
+    // Реальные фото из переписки, новые первыми.
+    return StreamBuilder<List<Message>>(
+      stream: chatRepository.watchMessages(chatId),
+      builder: (context, snapshot) {
+        final photos = (snapshot.data ?? const <Message>[])
+            .where((m) => m.imageUrl != null)
+            .toList()
+            .reversed
+            .toList();
+        if (snapshot.hasData && photos.isEmpty) {
+          return Center(
+            child: Text(
+              'Фото пока нет',
+              style: TextStyle(color: colors.textSecondary, fontSize: 16),
+            ),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.only(bottom: 16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
           ),
-      ],
+          itemCount: photos.length,
+          itemBuilder: (context, i) => ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image(
+              image: imageProviderFor(photos[i].imageUrl!),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: colors.card,
+                alignment: Alignment.center,
+                child:
+                    Icon(Icons.broken_image, color: colors.textSecondary),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
