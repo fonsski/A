@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
+import '../notifications/notification_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/online_status.dart';
@@ -30,7 +31,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final _inputFocus = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    activeChatId = widget.chatId; // по открытому чату не уведомляем
+  }
+
+  @override
   void dispose() {
+    if (activeChatId == widget.chatId) activeChatId = null;
     _controller.dispose();
     _scroll.dispose();
     _inputFocus.dispose();

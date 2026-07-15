@@ -16,6 +16,12 @@ class SupabaseFriendsRepository implements FriendsRepository {
           table: 'friendships',
           callback: (_) => _refresh(),
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'blacklist',
+          callback: (_) => _refreshBlocked(),
+        )
         .subscribe();
   }
 
@@ -119,5 +125,62 @@ class SupabaseFriendsRepository implements FriendsRepository {
         .eq('user_a', a)
         .eq('user_b', b);
     await _refresh();
+  }
+
+  final _blockedController =
+      StreamController<List<UserSummary>>.broadcast();
+  List<UserSummary>? _blocked;
+
+  Future<void> _refreshBlocked() async {
+    final rows = await _client.from('blacklist').select('''
+          blocked_id,
+          blocked:profiles!blacklist_blocked_id_fkey(id, username, display_name, avatar_url)
+        ''').eq('owner_id', _uid);
+    _blocked = [
+      for (final r in rows)
+        () {
+          final p = (r['blocked'] ?? const {}) as Map<String, dynamic>;
+          return UserSummary(
+            id: r['blocked_id'] as String,
+            username: (p['username'] ?? '') as String,
+            displayName:
+                (p['display_name'] ?? p['username'] ?? 'Кто-то') as String,
+            avatarUrl: p['avatar_url'] as String?,
+          );
+        }(),
+    ];
+    _blockedController.add(_blocked!);
+  }
+
+  @override
+  Set<String> get currentBlocked =>
+      {for (final u in _blocked ?? const <UserSummary>[]) u.id};
+
+  @override
+  Stream<List<UserSummary>> watchBlocked() async* {
+    if (_blocked != null) yield _blocked!;
+    unawaited(_refreshBlocked());
+    yield* _blockedController.stream;
+  }
+
+  @override
+  Future<void> block(UserSummary user) async {
+    // Дружба/заявки не переживают блокировку.
+    await remove(user.id);
+    await _client.from('blacklist').upsert({
+      'owner_id': _uid,
+      'blocked_id': user.id,
+    });
+    await _refreshBlocked();
+  }
+
+  @override
+  Future<void> unblock(String userId) async {
+    await _client
+        .from('blacklist')
+        .delete()
+        .eq('owner_id', _uid)
+        .eq('blocked_id', userId);
+    await _refreshBlocked();
   }
 }

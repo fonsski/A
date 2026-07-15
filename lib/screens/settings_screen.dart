@@ -1,13 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/auth_repository.dart';
 import '../main.dart';
+import '../notifications/notification_service.dart';
+import '../notifications/web_notifier_stub.dart'
+    if (dart.library.js_interop) '../notifications/web_notifier_web.dart'
+    as notifier;
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'privacy_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _notifyDm = true;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        setState(() => _notifyDm = prefs.getBool(kNotifyDmPref) ?? true);
+      }
+    });
+  }
+
+  Future<void> _toggleNotifyDm(bool value) async {
+    setState(() => _notifyDm = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kNotifyDmPref, value);
+    if (value && !await notifier.ensurePermission() && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(notifier.supported
+            ? 'Браузер запретил уведомления — разреши их в настройках сайта'
+            : 'Системные уведомления пока доступны только в веб-версии'),
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +65,15 @@ class SettingsScreen extends StatelessWidget {
               _SettingsRow('Общая безопасность', onTap: openPrivacy),
               const SizedBox(height: 16),
               const _SectionTitle('Уведомления и звуки'),
-              const _SettingsRow('Личные чаты'),
+              _SettingsRow(
+                'Личные чаты',
+                trailing: Switch(
+                  value: _notifyDm,
+                  activeThumbColor: context.colors.accent,
+                  onChanged: _toggleNotifyDm,
+                ),
+                onTap: () => _toggleNotifyDm(!_notifyDm),
+              ),
               const _SettingsRow('Групповые чаты'),
               const _SettingsRow('Уведомления со стены'),
               const SizedBox(height: 16),
@@ -93,10 +136,11 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _SettingsRow extends StatelessWidget {
-  const _SettingsRow(this.label, {this.onTap});
+  const _SettingsRow(this.label, {this.onTap, this.trailing});
 
   final String label;
   final VoidCallback? onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -108,18 +152,27 @@ class _SettingsRow extends StatelessWidget {
         child: Container(
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 13),
-          alignment: Alignment.centerLeft,
           decoration: BoxDecoration(
             color: colors.surface,
             borderRadius: BorderRadius.circular(32),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (trailing != null)
+                SizedBox(
+                    height: 28,
+                    child: FittedBox(child: trailing)),
+            ],
           ),
         ),
       ),

@@ -106,7 +106,8 @@ class UserProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            _BlockLink(user: user),
+            const SizedBox(height: 8),
             Expanded(
               child: StreamBuilder<List<Post>>(
                 stream: wallRepository.watchWallOf(user.id),
@@ -151,6 +152,67 @@ class UserProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// «Заблокировать / Разблокировать» — маленькая ссылка под кнопками.
+class _BlockLink extends StatelessWidget {
+  const _BlockLink({required this.user});
+
+  final UserSummary user;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return StreamBuilder<List<UserSummary>>(
+      stream: friendsRepository.watchBlocked(),
+      builder: (context, snapshot) {
+        final blocked =
+            (snapshot.data ?? const <UserSummary>[]).any((u) => u.id == user.id);
+        return TextButton(
+          onPressed: () async {
+            if (blocked) {
+              await friendsRepository.unblock(user.id);
+            } else {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dialog) => AlertDialog(
+                  backgroundColor: colors.surface,
+                  title: Text('Заблокировать @${user.username}?',
+                      style: TextStyle(
+                          color: colors.textPrimary, fontSize: 18)),
+                  content: Text(
+                    'Дружба удалится, он(а) перестанет видеть твою стену '
+                    'и писать тебе.',
+                    style: TextStyle(
+                        color: colors.textSecondary, fontSize: 14),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialog).pop(false),
+                      child: Text('Отмена',
+                          style: TextStyle(color: colors.textSecondary)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(dialog).pop(true),
+                      child: Text('Заблокировать',
+                          style: TextStyle(
+                              color: colors.accent,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) await friendsRepository.block(user);
+            }
+          },
+          child: Text(
+            blocked ? 'Разблокировать' : 'Заблокировать',
+            style: TextStyle(color: colors.textSecondary, fontSize: 13),
+          ),
+        );
+      },
     );
   }
 }

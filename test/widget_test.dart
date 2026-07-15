@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:a_messenger/auth/auth_repository.dart';
 import 'package:a_messenger/auth/mock_auth_repository.dart';
+import 'package:a_messenger/auth/pin_lock.dart';
 import 'package:a_messenger/data/chat_repository.dart';
 import 'package:a_messenger/data/friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
@@ -17,6 +19,8 @@ import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
 import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
+import 'package:a_messenger/screens/auth/pin_lock_screen.dart';
+import 'package:a_messenger/screens/blacklist_screen.dart';
 import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/photo_view_screen.dart';
@@ -24,7 +28,9 @@ import 'package:a_messenger/screens/profile_editor_screen.dart';
 import 'package:a_messenger/widgets/common.dart';
 
 void main() {
-  setUpAll(() {
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    pinLock = PinLock(await SharedPreferences.getInstance());
     authRepository =
         MockAuthRepository(confirmDelay: const Duration(seconds: 1));
     chatRepository = MockChatRepository();
@@ -303,6 +309,53 @@ void main() {
     expect(find.text('В друзьях'), findsOneWidget);
     // Его стена: пост про казино от viktor.dud.
     expect(find.textContaining('казино'), findsOneWidget);
+  });
+
+  testWidgets('чёрный список открывается из приватности', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    final settingsIcon = find.byWidgetPredicate((w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == 'assets/images/nav_settings.png');
+    await tester.tap(settingsIcon);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Настройки стены'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Показать'), 200,
+        scrollable: find.byType(Scrollable).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Показать'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BlacklistScreen), findsOneWidget);
+    expect(find.text('Список пуст — и это прекрасно'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('PIN-замок: заперто до верного кода', (tester) async {
+    await pinLock.setPin('4321');
+    pinLock.locked.value = true;
+
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.byType(PinLockScreen), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '0000');
+    await tester.tap(find.text('Открыть'));
+    await tester.pumpAndSettle();
+    expect(find.text('Неверный код'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '4321');
+    await tester.tap(find.text('Открыть'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeShell), findsOneWidget);
+
+    await pinLock.clear();
   });
 
   testWidgets('приватность: выбор сохраняется в репозиторий', (tester) async {
