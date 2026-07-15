@@ -54,8 +54,10 @@ class _InsetPillPainter extends BoxPainter {
   @override
   void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
     final rect = offset & configuration.size!;
-    final rrect =
-        RRect.fromRectAndRadius(rect, Radius.circular(decoration.radius));
+    final rrect = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(decoration.radius),
+    );
 
     canvas.drawRRect(rrect, Paint()..color = decoration.color);
 
@@ -71,8 +73,7 @@ class _InsetPillPainter extends BoxPainter {
       shadowPath,
       Paint()
         ..color = decoration.shadowColor
-        ..maskFilter =
-            MaskFilter.blur(BlurStyle.normal, decoration.blurSigma),
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, decoration.blurSigma),
     );
     canvas.restore();
 
@@ -131,7 +132,8 @@ class AHeader extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: pillDecoration(colors.accent),
-            child: circleChild ??
+            child:
+                circleChild ??
                 Icon(Icons.chevron_right, color: colors.bg, size: 20),
           ),
         ),
@@ -237,8 +239,11 @@ class ABottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Как и стенка: на широких экранах пилюля занимает центральную половину.
+    final width = MediaQuery.sizeOf(context).width;
+    final side = width > 700 ? width * 0.25 : 37.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(37, 8, 37, 12),
+      padding: EdgeInsets.fromLTRB(side, 8, side, 12),
       child: Container(
         height: 62,
         decoration: pillDecoration(colors.surface),
@@ -254,8 +259,11 @@ class ABottomNav extends StatelessWidget {
                   height: 50,
                   alignment: Alignment.center,
                   decoration: i == index
-                      ? pillDecoration(colors.card,
-                          radius: 32, inset: const Offset(0, -2))
+                      ? pillDecoration(
+                          colors.card,
+                          radius: 32,
+                          inset: const Offset(0, -2),
+                        )
                       : null,
                   child: Image.asset(_icons[i], width: 30, height: 30),
                 ),
