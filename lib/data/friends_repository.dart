@@ -29,6 +29,16 @@ abstract class FriendsRepository {
 
   /// Отклонить входящую, отменить исходящую или удалить из друзей.
   Future<void> remove(String userId);
+
+  /// Чёрный список (мой).
+  Stream<List<UserSummary>> watchBlocked();
+
+  Set<String> get currentBlocked;
+
+  /// Блокирует: дружба/заявки удаляются, стена и чаты закрываются (RLS).
+  Future<void> block(UserSummary user);
+
+  Future<void> unblock(String userId);
 }
 
 /// Назначается в main() до runApp (мок или Supabase).

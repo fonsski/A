@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_repository.dart';
 import 'auth/mock_auth_repository.dart';
+import 'auth/pin_lock.dart';
 import 'auth/supabase_auth_repository.dart';
 import 'config.dart';
 import 'data/chat_repository.dart';
@@ -19,6 +20,7 @@ import 'data/supabase/supabase_presence_repository.dart';
 import 'data/supabase/supabase_privacy_repository.dart';
 import 'data/supabase/supabase_wall_repository.dart';
 import 'data/wall_repository.dart';
+import 'notifications/notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
 
@@ -37,7 +39,9 @@ Future<void> initTheme(SharedPreferences prefs) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initTheme(await SharedPreferences.getInstance());
+  final prefs = await SharedPreferences.getInstance();
+  await initTheme(prefs);
+  pinLock = PinLock(prefs);
   if (AppConfig.useSupabase) {
     debugPrint('А?: Supabase.initialize starting...');
     await Supabase.initialize(
@@ -61,6 +65,7 @@ Future<void> main() async {
     presenceRepository = MockPresenceRepository();
   }
   await authRepository.init();
+  notificationService = NotificationService(prefs)..init();
   runApp(const AMessengerApp());
 }
 

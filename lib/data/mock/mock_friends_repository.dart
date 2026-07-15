@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../friends_repository.dart';
+import '../models.dart';
 import 'mock_directory.dart';
 
 /// Друзья в памяти: один друг и одна входящая заявка из коробки.
@@ -55,5 +56,35 @@ class MockFriendsRepository implements FriendsRepository {
   Future<void> remove(String userId) async {
     _statuses.remove(userId);
     _notify();
+  }
+
+  final _blocked = <String>{};
+  final _blockedController =
+      StreamController<List<UserSummary>>.broadcast();
+
+  List<UserSummary> get _blockedSnapshot =>
+      [for (final u in mockUsers) if (_blocked.contains(u.id)) u];
+
+  @override
+  Set<String> get currentBlocked => Set.unmodifiable(_blocked);
+
+  @override
+  Stream<List<UserSummary>> watchBlocked() async* {
+    yield _blockedSnapshot;
+    yield* _blockedController.stream;
+  }
+
+  @override
+  Future<void> block(UserSummary user) async {
+    _statuses.remove(user.id); // дружба/заявки не переживают блокировку
+    _blocked.add(user.id);
+    _notify();
+    _blockedController.add(_blockedSnapshot);
+  }
+
+  @override
+  Future<void> unblock(String userId) async {
+    _blocked.remove(userId);
+    _blockedController.add(_blockedSnapshot);
   }
 }

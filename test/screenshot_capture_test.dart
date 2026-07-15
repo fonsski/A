@@ -8,8 +8,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:a_messenger/auth/auth_repository.dart';
 import 'package:a_messenger/auth/mock_auth_repository.dart';
+import 'package:a_messenger/auth/pin_lock.dart';
 import 'package:a_messenger/data/chat_repository.dart';
 import 'package:a_messenger/data/friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
@@ -73,6 +76,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    pinLock = PinLock(await SharedPreferences.getInstance());
     authRepository = MockAuthRepository();
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();

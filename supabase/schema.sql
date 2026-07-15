@@ -176,6 +176,27 @@ returns boolean language sql stable security definer set search_path = public as
     else false end;
 $$;
 
+-- ── Чёрный список ──────────────────────────────────────────────────────────
+create table if not exists public.blacklist (
+  owner_id   uuid not null references public.profiles (id) on delete cascade,
+  blocked_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (owner_id, blocked_id),
+  check (owner_id <> blocked_id)
+);
+
+alter table public.blacklist enable row level security;
+create policy blacklist_own on public.blacklist
+  for all using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());
+
+create or replace function public.is_blocked(owner uuid, target uuid)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from blacklist
+                  where owner_id = owner and blocked_id = target);
+$$;
+
 -- ── Чаты 1:1 ───────────────────────────────────────────────────────────────
 create table if not exists public.chats (
   id         uuid primary key default gen_random_uuid(),
@@ -224,8 +245,15 @@ create policy chat_members_update_own on public.chat_members
 create policy messages_read on public.messages
   for select using (is_chat_member(chat_id, auth.uid()));
 create policy messages_send on public.messages
-  for insert with check (author_id = auth.uid()
-                         and is_chat_member(chat_id, auth.uid()));
+  for insert with check (
+    author_id = auth.uid()
+    and is_chat_member(chat_id, auth.uid())
+    and not exists (
+      select 1 from public.chat_members cm
+      join public.blacklist b
+        on (b.owner_id = cm.user_id and b.blocked_id = auth.uid())
+        or (b.owner_id = auth.uid() and b.blocked_id = cm.user_id)
+      where cm.chat_id = messages.chat_id));
 
 -- Начать (или найти существующий) диалог с пользователем.
 create or replace function public.start_dm(peer uuid)
@@ -233,6 +261,10 @@ returns uuid language plpgsql security definer set search_path = public as $$
 declare c uuid;
 begin
   if peer = auth.uid() then raise exception 'cannot dm yourself'; end if;
+  if public.is_blocked(peer, auth.uid())
+     or public.is_blocked(auth.uid(), peer) then
+    raise exception 'blocked';
+  end if;
   select cm.chat_id into c
     from chat_members cm
     join chat_members cm2 on cm2.chat_id = cm.chat_id and cm2.user_id = peer
@@ -326,10 +358,11 @@ language sql stable security definer set search_path = public as $$
   from privacy_settings where user_id = owner;
 $$;
 
--- Видимость поста = настройка стены её владельца.
+-- Видимость поста = настройка стены её владельца; заблокированным — ничего.
 create policy posts_read on public.posts for select using (
   wall_allows(wall_owner_id, auth.uid(),
-              coalesce(public.wall_rule(wall_owner_id, 'visible'), 'all')));
+              coalesce(public.wall_rule(wall_owner_id, 'visible'), 'all'))
+  and not public.is_blocked(wall_owner_id, auth.uid()));
 
 -- Писать на стену: своя — всегда, чужая — по настройке владельца.
 create policy posts_write on public.posts for insert with check (
@@ -429,4 +462,5 @@ create policy chat_media_insert on storage.objects
 
 -- ── Realtime ───────────────────────────────────────────────────────────────
 alter publication supabase_realtime
-  add table public.messages, public.posts, public.comments, public.reactions;
+  add table public.messages, public.posts, public.comments, public.reactions,
+            public.blacklist;

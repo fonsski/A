@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../auth/pin_lock.dart';
 import '../data/presence_repository.dart';
 import '../data/privacy_repository.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'blacklist_screen.dart';
 
 class PrivacyScreen extends StatefulWidget {
   const PrivacyScreen({super.key});
@@ -27,6 +29,79 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     // Оптимистично: UI сразу, база следом.
     setState(() => _settings = updated);
     await privacyRepository.save(updated);
+  }
+
+  Future<void> _changePin(BuildContext context) async {
+    final colors = context.colors;
+    final current = TextEditingController();
+    final fresh = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: Text('Код для входа',
+            style: TextStyle(color: colors.textPrimary, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (pinLock.hasPin)
+              TextField(
+                controller: current,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(hintText: 'Текущий код'),
+              ),
+            TextField(
+              controller: fresh,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  hintText: 'Новый код (пусто — убрать)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child:
+                Text('Отмена', style: TextStyle(color: colors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: Text('Сохранить',
+                style: TextStyle(
+                    color: colors.accent, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !context.mounted) return;
+
+    if (pinLock.hasPin && !pinLock.unlock(current.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Текущий код неверный')));
+      return;
+    }
+    final newPin = fresh.text.trim();
+    if (newPin.isEmpty) {
+      await pinLock.clear();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Код убран')));
+      }
+    } else if (newPin.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Код — минимум 4 символа')));
+      return;
+    } else {
+      await pinLock.setPin(newPin);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Код установлен — спросим при следующем входе')));
+      }
+    }
+    setState(() {}); // обновить подпись Установить/Изменить
   }
 
   @override
@@ -91,11 +166,19 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                             await presenceRepository.refreshVisibility();
                           },
                         ),
-                        const _ActionRow(
-                            question: 'Черный список', action: 'Показать'),
-                        const _ActionRow(
-                            question: 'Код для входа в приложение',
-                            action: 'Изменить'),
+                        _ActionRow(
+                          question: 'Черный список',
+                          action: 'Показать',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const BlacklistScreen()),
+                          ),
+                        ),
+                        _ActionRow(
+                          question: 'Код для входа в приложение',
+                          action: pinLock.hasPin ? 'Изменить' : 'Установить',
+                          onTap: () => _changePin(context),
+                        ),
                       ],
                     ),
             ),
@@ -196,10 +279,15 @@ class _SegmentedRow extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.question, required this.action});
+  const _ActionRow({
+    required this.question,
+    required this.action,
+    this.onTap,
+  });
 
   final String question;
   final String action;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -216,14 +304,25 @@ class _ActionRow extends StatelessWidget {
               style: TextStyle(color: colors.textPrimary, fontSize: 16),
             ),
           ),
-          Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            alignment: Alignment.centerLeft,
-            decoration: pillDecoration(colors.surface),
-            child: Text(
-              action,
-              style: TextStyle(color: colors.textPrimary, fontSize: 16),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: pillDecoration(colors.surface),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      action,
+                      style:
+                          TextStyle(color: colors.textPrimary, fontSize: 16),
+                    ),
+                  ),
+                  if (onTap != null)
+                    Icon(Icons.chevron_right, color: colors.accent),
+                ],
+              ),
             ),
           ),
         ],
