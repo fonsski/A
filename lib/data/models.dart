@@ -44,6 +44,14 @@ class ChatSummary {
       );
 }
 
+enum AttachmentKind { image, video, file }
+
+String attachmentPreview(AttachmentKind kind) => switch (kind) {
+      AttachmentKind.image => '📷 Фото',
+      AttachmentKind.video => '🎬 Видео',
+      AttachmentKind.file => '📎 Файл',
+    };
+
 class Message {
   const Message({
     required this.id,
@@ -51,7 +59,9 @@ class Message {
     required this.text,
     required this.sentAt,
     required this.mine,
-    this.imageUrl,
+    this.attachmentUrl,
+    this.attachmentKind,
+    this.attachmentName,
   });
 
   final String id;
@@ -59,8 +69,16 @@ class Message {
   final String text;
   final DateTime sentAt;
   final bool mine;
-  final String? imageUrl;
+  final String? attachmentUrl;
+  final AttachmentKind? attachmentKind;
+  final String? attachmentName;
 }
+
+final _linkRe = RegExp(r'https?://[^\s<>"]+');
+
+/// Ссылки из текста сообщения (для вкладки «Ссылки» в инфо-чате).
+List<String> extractLinks(String text) =>
+    _linkRe.allMatches(text).map((m) => m.group(0)!).toList();
 
 class Comment {
   const Comment({

@@ -32,8 +32,8 @@ class _MockChat {
         lastText: messages.isEmpty
             ? ''
             : (messages.last.mine ? 'Me: ' : '') +
-                (messages.last.imageUrl != null
-                    ? '📷 Фото'
+                (messages.last.attachmentKind != null
+                    ? attachmentPreview(messages.last.attachmentKind!)
                     : messages.last.text),
         lastAt: messages.isEmpty ? null : messages.last.sentAt,
         unread: unread,
@@ -66,9 +66,37 @@ class MockChatRepository implements ChatRepository {
             id: 'c1-3',
             chatId: 'c1',
             text: '',
-            sentAt: now.subtract(const Duration(minutes: 60)),
+            sentAt: now.subtract(const Duration(minutes: 70)),
             mine: false,
-            imageUrl: 'asset:assets/images/media.png',
+            attachmentUrl: 'asset:assets/images/media.png',
+            attachmentKind: AttachmentKind.image,
+          ),
+          Message(
+            id: 'c1-4',
+            chatId: 'c1',
+            text: 'глянь доку https://flutter.dev и ещё https://supabase.com',
+            sentAt: now.subtract(const Duration(minutes: 65)),
+            mine: true,
+          ),
+          Message(
+            id: 'c1-5',
+            chatId: 'c1',
+            text: '',
+            sentAt: now.subtract(const Duration(minutes: 62)),
+            mine: false,
+            attachmentUrl: 'asset:assets/images/media.png',
+            attachmentKind: AttachmentKind.video,
+            attachmentName: 'niva_offroad.mp4',
+          ),
+          Message(
+            id: 'c1-6',
+            chatId: 'c1',
+            text: '',
+            sentAt: now.subtract(const Duration(minutes: 61)),
+            mine: true,
+            attachmentUrl: 'asset:assets/images/media.png',
+            attachmentKind: AttachmentKind.file,
+            attachmentName: 'смета_на_шноркель.pdf',
           ),
         ],
       ),
@@ -156,15 +184,22 @@ class MockChatRepository implements ChatRepository {
   }
 
   @override
-  Future<void> sendImage(
-      String chatId, Uint8List bytes, String mimeType) async {
+  Future<void> sendAttachment(
+    String chatId,
+    Uint8List bytes,
+    String mimeType,
+    String filename,
+    AttachmentKind kind,
+  ) async {
     _chat(chatId).messages.add(Message(
           id: 'm${_nextId++}',
           chatId: chatId,
           text: '',
           sentAt: DateTime.now(),
           mine: true,
-          imageUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
+          attachmentUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
+          attachmentKind: kind,
+          attachmentName: filename,
         ));
     _notify(chatId);
   }

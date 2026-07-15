@@ -39,10 +39,15 @@ class SupabaseChatRepository implements ChatRepository {
         ChatSummary(
           id: r['chat_id'] as String,
           peerName: (r['peer_name'] ?? 'Чат') as String,
-          // Пустой body при непустом чате — это фото (constraint в БД).
-          lastText: r['last_at'] != null && ((r['last_body'] ?? '') as String).isEmpty
-              ? '📷 Фото'
-              : (r['last_body'] ?? '') as String,
+          lastText: switch (r['last_attachment'] as String?) {
+            'image' => '📷 Фото',
+            'video' => '🎬 Видео',
+            'file' => '📎 Файл',
+            _ => r['last_at'] != null &&
+                    ((r['last_body'] ?? '') as String).isEmpty
+                ? '📎 Вложение'
+                : (r['last_body'] ?? '') as String,
+          },
           lastAt: r['last_at'] == null
               ? null
               : DateTime.parse(r['last_at'] as String),
@@ -77,7 +82,14 @@ class SupabaseChatRepository implements ChatRepository {
                   text: r['body'] as String,
                   sentAt: DateTime.parse(r['created_at'] as String),
                   mine: r['author_id'] == _uid,
-                  imageUrl: r['image_url'] as String?,
+                  attachmentUrl: r['image_url'] as String?,
+                  attachmentKind: switch (r['attachment_type'] as String?) {
+                    'video' => AttachmentKind.video,
+                    'file' => AttachmentKind.file,
+                    'image' => AttachmentKind.image,
+                    _ => r['image_url'] != null ? AttachmentKind.image : null,
+                  },
+                  attachmentName: r['attachment_name'] as String?,
                 ),
             ]);
   }
@@ -92,9 +104,16 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Future<void> sendImage(
-      String chatId, Uint8List bytes, String mimeType) async {
-    final ext = mimeType.split('/').last;
+  Future<void> sendAttachment(
+    String chatId,
+    Uint8List bytes,
+    String mimeType,
+    String filename,
+    AttachmentKind kind,
+  ) async {
+    // Имя в Storage — своё (кириллица/пробелы ломают ключи),
+    // человекочитаемое имя хранится в attachment_name.
+    final ext = filename.contains('.') ? filename.split('.').last : 'bin';
     final path =
         '$chatId/${DateTime.now().millisecondsSinceEpoch}.$ext';
     await _client.storage.from('chat-media').uploadBinary(
@@ -108,6 +127,8 @@ class SupabaseChatRepository implements ChatRepository {
       'author_id': _uid,
       'body': '',
       'image_url': url,
+      'attachment_type': kind.name,
+      'attachment_name': filename,
     });
   }
 

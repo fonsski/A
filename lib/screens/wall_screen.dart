@@ -20,10 +20,11 @@ class _WallScreenState extends State<WallScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    // Отступы по 25% слева и справа — контент занимает центральную половину.
+    // На широких экранах отступы по 25% с боков, на мобильном — во всю ширину.
+    final wide = MediaQuery.sizeOf(context).width > 700;
     return Center(
       child: FractionallySizedBox(
-        widthFactor: 0.5,
+        widthFactor: wide ? 0.5 : 1.0,
         child: Column(
           children: [
             Padding(

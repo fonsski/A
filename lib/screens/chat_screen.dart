@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
@@ -51,25 +55,71 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<void> _attachImage() async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1280,
-      maxHeight: 1280,
-      imageQuality: 85,
+  Future<void> _attach() async {
+    final colors = context.colors;
+    final kind = await showModalBottomSheet<AttachmentKind>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (kind, icon, label) in [
+              (AttachmentKind.image, Icons.image_outlined, 'Фото'),
+              (AttachmentKind.video, Icons.videocam_outlined, 'Видео'),
+              (AttachmentKind.file, Icons.attach_file, 'Файл'),
+            ])
+              ListTile(
+                leading: Icon(icon, color: colors.accent),
+                title: Text(label,
+                    style: TextStyle(color: colors.textPrimary)),
+                onTap: () => Navigator.of(sheet).pop(kind),
+              ),
+          ],
+        ),
+      ),
     );
-    if (picked == null || !mounted) return;
+    if (kind == null || !mounted) return;
+
     try {
-      final bytes = await picked.readAsBytes();
-      await chatRepository.sendImage(
-        widget.chatId,
-        bytes,
-        picked.mimeType ?? 'image/jpeg',
-      );
+      Uint8List? bytes;
+      String? mime;
+      String? name;
+      switch (kind) {
+        case AttachmentKind.image:
+          final picked = await ImagePicker().pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 1280,
+            maxHeight: 1280,
+            imageQuality: 85,
+          );
+          if (picked == null) return;
+          bytes = await picked.readAsBytes();
+          mime = picked.mimeType ?? 'image/jpeg';
+          name = picked.name;
+        case AttachmentKind.video:
+          final picked =
+              await ImagePicker().pickVideo(source: ImageSource.gallery);
+          if (picked == null) return;
+          bytes = await picked.readAsBytes();
+          mime = picked.mimeType ?? 'video/mp4';
+          name = picked.name;
+        case AttachmentKind.file:
+          final picked = await fs.openFile();
+          if (picked == null) return;
+          bytes = await picked.readAsBytes();
+          mime = picked.mimeType ?? 'application/octet-stream';
+          name = picked.name;
+      }
+      await chatRepository.sendAttachment(
+          widget.chatId, bytes, mime, name, kind);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Фото не отправилось: $e')),
+          SnackBar(content: Text('Вложение не отправилось: $e')),
         );
       }
     }
@@ -195,10 +245,10 @@ class _ChatScreenState extends State<ChatScreen> {
                               fontSize: 16,
                             ),
                             suffixIcon: IconButton(
-                              tooltip: 'Прикрепить фото',
-                              icon: Icon(Icons.image_outlined,
+                              tooltip: 'Прикрепить',
+                              icon: Icon(Icons.attach_file,
                                   color: colors.textSecondary),
-                              onPressed: _attachImage,
+                              onPressed: _attach,
                             ),
                           ),
                         ),
@@ -233,6 +283,79 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+/// Вложение в пузыре: фото — инлайном, видео/файл — плашкой с открытием.
+class _Attachment extends StatelessWidget {
+  const _Attachment({required this.message});
+
+  final Message message;
+
+  Future<void> _open(BuildContext context) async {
+    final url = message.attachmentUrl!;
+    if (!url.startsWith('http')) return; // мок-данные не открываем
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть вложение')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    if (message.attachmentKind == AttachmentKind.image) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image(
+          image: imageProviderFor(message.attachmentUrl!),
+          width: 220,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Container(
+            width: 220,
+            height: 120,
+            color: colors.bg,
+            alignment: Alignment.center,
+            child: Icon(Icons.broken_image, color: colors.textSecondary),
+          ),
+        ),
+      );
+    }
+    final isVideo = message.attachmentKind == AttachmentKind.video;
+    return InkWell(
+      onTap: () => _open(context),
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              isVideo ? Icons.play_circle_outline : Icons.insert_drive_file,
+              color: colors.accent,
+              size: 32,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message.attachmentName ?? (isVideo ? 'Видео' : 'Файл'),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Bubble extends StatelessWidget {
   const _Bubble({required this.message});
 
@@ -258,23 +381,8 @@ class _Bubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (message.imageUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image(
-                  image: imageProviderFor(message.imageUrl!),
-                  width: 220,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 220,
-                    height: 120,
-                    color: colors.bg,
-                    alignment: Alignment.center,
-                    child: Icon(Icons.broken_image,
-                        color: colors.textSecondary),
-                  ),
-                ),
-              ),
+            if (message.attachmentUrl != null)
+              _Attachment(message: message),
             if (message.text.isNotEmpty)
               Text(
                 message.text,
