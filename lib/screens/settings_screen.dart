@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../auth/auth_repository.dart';
+import '../main.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'privacy_screen.dart';
@@ -34,7 +35,13 @@ class SettingsScreen extends StatelessWidget {
               const _SettingsRow('Уведомления со стены'),
               const SizedBox(height: 16),
               const _SectionTitle('Оформление и интерфейс'),
-              const _SettingsRow('Тема'),
+              _SettingsRow(
+                'Тема: ${themeMode.value == ThemeMode.dark ? 'тёмная' : 'светлая'}',
+                onTap: () => themeMode.value =
+                    themeMode.value == ThemeMode.dark
+                        ? ThemeMode.light
+                        : ThemeMode.dark,
+              ),
               const _SettingsRow('Размер шрифта'),
               const _SettingsRow('Фон чатов'),
               const SizedBox(height: 16),
