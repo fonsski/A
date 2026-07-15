@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/online_status.dart';
+import 'photo_view_screen.dart';
 import 'user_profile_screen.dart';
 
 enum _MediaTab { photo, video, files, links }
@@ -302,16 +303,24 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 crossAxisSpacing: 8,
               ),
               itemCount: photos.length,
-              itemBuilder: (context, i) => ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image(
-                  image: imageProviderFor(photos[i].attachmentUrl!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    color: colors.card,
-                    alignment: Alignment.center,
-                    child: Icon(Icons.broken_image,
-                        color: colors.textSecondary),
+              itemBuilder: (context, i) => GestureDetector(
+                onTap: () => PhotoViewScreen.open(
+                  context,
+                  photos[i].attachmentUrl!,
+                  caption:
+                      photos[i].text.isEmpty ? null : photos[i].text,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image(
+                    image: imageProviderFor(photos[i].attachmentUrl!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: colors.card,
+                      alignment: Alignment.center,
+                      child: Icon(Icons.broken_image,
+                          color: colors.textSecondary),
+                    ),
                   ),
                 ),
               ),

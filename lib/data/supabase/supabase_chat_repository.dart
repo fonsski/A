@@ -40,9 +40,12 @@ class SupabaseChatRepository implements ChatRepository {
           id: r['chat_id'] as String,
           peerName: (r['peer_name'] ?? 'Чат') as String,
           lastText: switch (r['last_attachment'] as String?) {
-            'image' => '📷 Фото',
-            'video' => '🎬 Видео',
-            'file' => '📎 Файл',
+            'image' => attachmentPreview(
+                AttachmentKind.image, (r['last_body'] ?? '') as String),
+            'video' => attachmentPreview(
+                AttachmentKind.video, (r['last_body'] ?? '') as String),
+            'file' => attachmentPreview(
+                AttachmentKind.file, (r['last_body'] ?? '') as String),
             _ => r['last_at'] != null &&
                     ((r['last_body'] ?? '') as String).isEmpty
                 ? '📎 Вложение'
@@ -109,8 +112,9 @@ class SupabaseChatRepository implements ChatRepository {
     Uint8List bytes,
     String mimeType,
     String filename,
-    AttachmentKind kind,
-  ) async {
+    AttachmentKind kind, {
+    String caption = '',
+  }) async {
     // Имя в Storage — своё (кириллица/пробелы ломают ключи),
     // человекочитаемое имя хранится в attachment_name.
     final ext = filename.contains('.') ? filename.split('.').last : 'bin';
@@ -125,7 +129,7 @@ class SupabaseChatRepository implements ChatRepository {
     await _client.from('messages').insert({
       'chat_id': chatId,
       'author_id': _uid,
-      'body': '',
+      'body': caption,
       'image_url': url,
       'attachment_type': kind.name,
       'attachment_name': filename,

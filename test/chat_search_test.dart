@@ -60,6 +60,15 @@ void main() {
       expect(messages.last.attachmentName, 'doc.pdf');
       chats = await repo.watchChats().first;
       expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📎 Файл');
+
+      // Подпись к медиа попадает в текст сообщения и в превью чата.
+      await repo.sendAttachment(
+          'c3', bytes, 'image/png', 'cat.png', AttachmentKind.image,
+          caption: 'мой кот');
+      messages = await repo.watchMessages('c3').first;
+      expect(messages.last.text, 'мой кот');
+      chats = await repo.watchChats().first;
+      expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📷 мой кот');
     });
 
     test('startDm повторно возвращает существующий чат', () async {

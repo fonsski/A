@@ -33,7 +33,8 @@ class _MockChat {
             ? ''
             : (messages.last.mine ? 'Me: ' : '') +
                 (messages.last.attachmentKind != null
-                    ? attachmentPreview(messages.last.attachmentKind!)
+                    ? attachmentPreview(
+                        messages.last.attachmentKind!, messages.last.text)
                     : messages.last.text),
         lastAt: messages.isEmpty ? null : messages.last.sentAt,
         unread: unread,
@@ -189,12 +190,13 @@ class MockChatRepository implements ChatRepository {
     Uint8List bytes,
     String mimeType,
     String filename,
-    AttachmentKind kind,
-  ) async {
+    AttachmentKind kind, {
+    String caption = '',
+  }) async {
     _chat(chatId).messages.add(Message(
           id: 'm${_nextId++}',
           chatId: chatId,
-          text: '',
+          text: caption,
           sentAt: DateTime.now(),
           mine: true,
           attachmentUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
