@@ -58,11 +58,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => ChatScreen(
-          chatId: chatId,
-          name: user.displayName,
-          avatarUrl: user.avatarUrl,
-        ),
+        builder: (_) => ChatScreen(chatId: chatId, peer: user),
       ),
     );
   }

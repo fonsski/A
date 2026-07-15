@@ -21,6 +21,12 @@ class MockFriendsRepository implements FriendsRepository {
   void _notify() => _controller.add(_snapshot);
 
   @override
+  Set<String> get currentFriends => {
+        for (final e in _statuses.entries)
+          if (e.value == FriendStatus.friends) e.key,
+      };
+
+  @override
   Stream<List<FriendEntry>> watchFriends() async* {
     yield _snapshot;
     yield* _controller.stream;

@@ -71,6 +71,19 @@ class _WallScreenState extends State<WallScreen> {
             stream:
                 _mine ? wallRepository.watchMine() : wallRepository.watchFeed(),
             builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Не удалось загрузить стенку:\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: colors.textSecondary, fontSize: 14),
+                    ),
+                  ),
+                );
+              }
               final posts = snapshot.data ?? const <Post>[];
               if (snapshot.hasData && posts.isEmpty) {
                 return Center(

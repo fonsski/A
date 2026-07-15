@@ -20,6 +20,9 @@ abstract class FriendsRepository {
   /// Друзья и входящие/исходящие заявки одним списком.
   Stream<List<FriendEntry>> watchFriends();
 
+  /// Кэш id принятых друзей (для быстрых проверок, например presence).
+  Set<String> get currentFriends;
+
   Future<void> sendRequest(String userId);
 
   Future<void> accept(String userId);

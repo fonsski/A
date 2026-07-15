@@ -4,6 +4,7 @@ import '../../auth/auth_repository.dart';
 import '../feed_ranker.dart';
 import '../models.dart';
 import '../wall_repository.dart';
+import 'mock_directory.dart';
 
 const _lorem =
     'Lorem Ipsum - это текст-"рыба", часто используемый в печати и '
@@ -95,6 +96,7 @@ class MockWallRepository implements WallRepository {
   List<Post> get _snapshot => _posts
       .map((p) => Post(
             id: p.id,
+            ownerId: p.authorUsername,
             authorName: p.authorName,
             authorUsername: p.authorUsername,
             text: p.text,
@@ -139,6 +141,24 @@ class MockWallRepository implements WallRepository {
     yield _snapshot.where((p) => p.mine).toList();
     yield* _controller.stream
         .map((posts) => posts.where((p) => p.mine).toList());
+  }
+
+  @override
+  Stream<List<Post>> watchWallOf(String userId) {
+    // В моке владелец стены — username автора; id из справочника.
+    final username = mockUsers
+            .where((u) => u.id == userId)
+            .map((u) => u.username)
+            .firstOrNull ??
+        userId;
+    List<Post> wall(List<Post> posts) =>
+        posts.where((p) => p.ownerId == username).toList();
+    Stream<List<Post>> source() async* {
+      yield wall(_snapshot);
+      yield* _controller.stream.map(wall);
+    }
+
+    return source();
   }
 
   @override

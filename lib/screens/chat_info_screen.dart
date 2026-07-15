@@ -4,6 +4,8 @@ import '../data/chat_repository.dart';
 import '../data/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/online_status.dart';
+import 'user_profile_screen.dart';
 
 enum _MediaTab { photo, video, files }
 
@@ -11,17 +13,12 @@ enum _MediaTab { photo, video, files }
 /// большой аватар, статус, кнопки Чат/Звук/Звонок и медиа переписки.
 /// «Звонок» разворачивает плашку Аудио/Видео (group 10), кнопка
 /// с аватаром посередине сворачивает её обратно.
+/// Тап по имени открывает полный профиль собеседника.
 class ChatInfoScreen extends StatefulWidget {
-  const ChatInfoScreen({
-    super.key,
-    required this.name,
-    this.chatId,
-    this.avatarUrl,
-  });
+  const ChatInfoScreen({super.key, required this.peer, this.chatId});
 
-  final String name;
+  final UserSummary peer;
   final String? chatId;
-  final String? avatarUrl;
 
   @override
   State<ChatInfoScreen> createState() => _ChatInfoScreenState();
@@ -52,7 +49,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         height: 128,
                         padding: const EdgeInsets.all(8),
                         decoration: pillDecoration(colors.surface, radius: 64),
-                        child: AAvatar(size: 112, url: widget.avatarUrl),
+                        child: AAvatar(size: 112, url: widget.peer.avatarUrl),
                       ),
                     ),
                     Align(
@@ -71,28 +68,41 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: pillDecoration(colors.surface,
-                    radius: 36, inset: const Offset(0, -2)),
-                child: Text(
-                  widget.name,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+              // Тап по имени — полный профиль собеседника.
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => UserProfileScreen(user: widget.peer),
+                  ),
+                ),
+                child: Container(
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: pillDecoration(colors.surface,
+                      radius: 36, inset: const Offset(0, -2)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.peer.displayName,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.chevron_right,
+                          color: colors.accent, size: 20),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'в сети',
-                style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+              OnlineStatus(
+                userId: widget.peer.id,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
               ),
               const SizedBox(height: 16),
               // Чат / Звук / Звонок <-> плашка звонка (group 10).
@@ -189,7 +199,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               height: 40,
               padding: const EdgeInsets.all(6),
               decoration: pillDecoration(colors.card, radius: 24),
-              child: AAvatar(size: 28, url: widget.avatarUrl),
+              child: AAvatar(size: 28, url: widget.peer.avatarUrl),
             ),
           ),
           const SizedBox(width: 4),

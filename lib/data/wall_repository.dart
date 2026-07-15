@@ -8,6 +8,9 @@ abstract class WallRepository {
   /// Вкладка «Моё!» — посты на моей стене.
   Stream<List<Post>> watchMine();
 
+  /// Стена конкретного пользователя (видимость решает бэкенд).
+  Stream<List<Post>> watchWallOf(String userId);
+
   Future<void> createPost(String text);
 
   /// Ставит/снимает «Ага!».

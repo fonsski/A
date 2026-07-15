@@ -5,19 +5,14 @@ import '../data/chat_repository.dart';
 import '../data/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/online_status.dart';
 import 'chat_info_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({
-    super.key,
-    required this.chatId,
-    required this.name,
-    this.avatarUrl,
-  });
+  const ChatScreen({super.key, required this.chatId, required this.peer});
 
   final String chatId;
-  final String name;
-  final String? avatarUrl;
+  final UserSummary peer;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -50,8 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
       MaterialPageRoute(
         builder: (_) => ChatInfoScreen(
           chatId: widget.chatId,
-          name: widget.name,
-          avatarUrl: widget.avatarUrl,
+          peer: widget.peer,
         ),
       ),
     );
@@ -65,12 +59,20 @@ class _ChatScreenState extends State<ChatScreen> {
       imageQuality: 85,
     );
     if (picked == null || !mounted) return;
-    final bytes = await picked.readAsBytes();
-    await chatRepository.sendImage(
-      widget.chatId,
-      bytes,
-      picked.mimeType ?? 'image/jpeg',
-    );
+    try {
+      final bytes = await picked.readAsBytes();
+      await chatRepository.sendImage(
+        widget.chatId,
+        bytes,
+        picked.mimeType ?? 'image/jpeg',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Фото не отправилось: $e')),
+        );
+      }
+    }
     _inputFocus.requestFocus();
   }
 
@@ -115,16 +117,27 @@ class _ChatScreenState extends State<ChatScreen> {
                         decoration: pillDecoration(colors.surface),
                         child: Row(
                           children: [
-                            AAvatar(size: 40, url: widget.avatarUrl),
+                            AAvatar(size: 40, url: widget.peer.avatarUrl),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                widget.name,
-                                style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.peer.displayName,
+                                    style: TextStyle(
+                                      color: colors.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  OnlineStatus(
+                                    userId: widget.peer.id,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ],
                               ),
                             ),
                             Icon(Icons.more_vert,
