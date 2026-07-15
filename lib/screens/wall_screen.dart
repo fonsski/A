@@ -20,95 +20,108 @@ class _WallScreenState extends State<WallScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(13, 16, 13, 0),
-          child: Column(
-            children: [
-              const AHeader(title: 'Стенка'),
-              const SizedBox(height: 8),
-              Container(
-                height: 36,
-                padding: const EdgeInsets.all(2),
-                decoration: pillDecoration(colors.surface),
-                child: Row(
-                  children: [
-                    _WallTab(
-                      label: 'Моё!',
-                      selected: _mine,
-                      onTap: () => setState(() => _mine = true),
+    // Отступы по 25% слева и справа — контент занимает центральную половину.
+    return Center(
+      child: FractionallySizedBox(
+        widthFactor: 0.5,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 16, 13, 0),
+              child: Column(
+                children: [
+                  const AHeader(title: 'Стенка'),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 36,
+                    padding: const EdgeInsets.all(2),
+                    decoration: pillDecoration(colors.surface),
+                    child: Row(
+                      children: [
+                        _WallTab(
+                          label: 'Моё!',
+                          selected: _mine,
+                          onTap: () => setState(() => _mine = true),
+                        ),
+                        _WallTab(
+                          label: 'А?',
+                          selected: !_mine,
+                          onTap: () => setState(() => _mine = false),
+                        ),
+                      ],
                     ),
-                    _WallTab(
-                      label: 'А?',
-                      selected: !_mine,
-                      onTap: () => setState(() => _mine = false),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              APill(
-                color: colors.accent,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NewPostScreen()),
-                ),
-                child: Text(
-                  'Новый пост?',
-                  style: TextStyle(
-                    color: colors.bg,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: StreamBuilder<List<Post>>(
-            stream:
-                _mine ? wallRepository.watchMine() : wallRepository.watchFeed(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
+                  const SizedBox(height: 8),
+                  APill(
+                    color: colors.accent,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const NewPostScreen()),
+                    ),
                     child: Text(
-                      'Не удалось загрузить стенку:\n${snapshot.error}',
-                      textAlign: TextAlign.center,
+                      'Новый пост?',
                       style: TextStyle(
-                          color: colors.textSecondary, fontSize: 14),
+                        color: colors.bg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                );
-              }
-              final posts = snapshot.data ?? const <Post>[];
-              if (snapshot.hasData && posts.isEmpty) {
-                return Center(
-                  child: Text(
-                    _mine ? 'На твоей стенке пусто.\nНовый пост?' : 'Лента пуста',
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: colors.textSecondary, fontSize: 16),
-                  ),
-                );
-              }
-              return ListView.separated(
-                padding: EdgeInsets.zero,
-                itemCount: posts.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, i) => PostCard(
-                  post: posts[i],
-                  onAga: () => wallRepository.toggleAga(posts[i].id),
-                  onComment: () => showCommentSheet(context, posts[i].id),
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: StreamBuilder<List<Post>>(
+                stream: _mine
+                    ? wallRepository.watchMine()
+                    : wallRepository.watchFeed(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'Не удалось загрузить стенку:\n${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  final posts = snapshot.data ?? const <Post>[];
+                  if (snapshot.hasData && posts.isEmpty) {
+                    return Center(
+                      child: Text(
+                        _mine
+                            ? 'На твоей стенке пусто.\nНовый пост?'
+                            : 'Лента пуста',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 16,
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: posts.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, i) => PostCard(
+                      post: posts[i],
+                      onAga: () => wallRepository.toggleAga(posts[i].id),
+                      onComment: () => showCommentSheet(context, posts[i].id),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -126,7 +139,11 @@ Future<void> showCommentSheet(BuildContext context, String postId) {
     ),
     builder: (sheetContext) => Padding(
       padding: EdgeInsets.fromLTRB(
-        16, 16, 16, 16 + MediaQuery.viewInsetsOf(sheetContext).bottom),
+        16,
+        16,
+        16,
+        16 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -137,8 +154,7 @@ Future<void> showCommentSheet(BuildContext context, String postId) {
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: 'Комментарий...',
-                hintStyle:
-                    TextStyle(color: colors.textSecondary, fontSize: 16),
+                hintStyle: TextStyle(color: colors.textSecondary, fontSize: 16),
               ),
             ),
           ),
@@ -179,8 +195,11 @@ class _WallTab extends StatelessWidget {
         child: Container(
           alignment: Alignment.center,
           decoration: selected
-              ? pillDecoration(colors.card,
-                  radius: 32, inset: const Offset(0, -2))
+              ? pillDecoration(
+                  colors.card,
+                  radius: 32,
+                  inset: const Offset(0, -2),
+                )
               : null,
           child: Text(
             label,
