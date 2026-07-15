@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_repository.dart';
@@ -21,11 +22,22 @@ import 'data/wall_repository.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
 
-/// Переключается кнопкой «DARK» на экране чатов.
+/// Переключается кнопкой «DARK» на экране чатов и строкой «Тема» в настройках.
 final themeMode = ValueNotifier<ThemeMode>(ThemeMode.light);
+
+/// Восстанавливает сохранённую тему и сохраняет каждое переключение.
+Future<void> initTheme(SharedPreferences prefs) async {
+  themeMode.value =
+      prefs.getString('theme') == 'dark' ? ThemeMode.dark : ThemeMode.light;
+  themeMode.addListener(() {
+    prefs.setString(
+        'theme', themeMode.value == ThemeMode.dark ? 'dark' : 'light');
+  });
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initTheme(await SharedPreferences.getInstance());
   if (AppConfig.useSupabase) {
     debugPrint('А?: Supabase.initialize starting...');
     await Supabase.initialize(
