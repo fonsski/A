@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
@@ -7,7 +8,7 @@ import '../widgets/common.dart';
 import '../widgets/online_status.dart';
 import 'user_profile_screen.dart';
 
-enum _MediaTab { photo, video, files }
+enum _MediaTab { photo, video, files, links }
 
 /// Развёрнутая информация о чате (второй фрейм "Chat" в макете):
 /// большой аватар, статус, кнопки Чат/Звук/Звонок и медиа переписки.
@@ -245,68 +246,169 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           tab('Фото', _MediaTab.photo),
           tab('Видео', _MediaTab.video),
           tab('Файлы', _MediaTab.files),
+          tab('Ссылки', _MediaTab.links),
         ],
       ),
     );
   }
 
+  static const _empty = {
+    _MediaTab.photo: 'Фото пока нет',
+    _MediaTab.video: 'Видео пока нет',
+    _MediaTab.files: 'Файлов пока нет',
+    _MediaTab.links: 'Ссылок пока нет',
+  };
+
+  Future<void> _open(String url) async {
+    if (!url.startsWith('http')) return; // мок-данные не открываем
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть')),
+        );
+      }
+    }
+  }
+
   Widget _buildMedia(AColors colors) {
-    if (_tab != _MediaTab.photo) {
-      return Center(
-        child: Text(
-          _tab == _MediaTab.video ? 'Видео пока нет' : 'Файлов пока нет',
-          style: TextStyle(color: colors.textSecondary, fontSize: 16),
-        ),
-      );
-    }
     final chatId = widget.chatId;
-    if (chatId == null) {
-      return Center(
-        child: Text(
-          'Фото пока нет',
-          style: TextStyle(color: colors.textSecondary, fontSize: 16),
-        ),
-      );
-    }
-    // Реальные фото из переписки, новые первыми.
+    Widget empty() => Center(
+          child: Text(
+            _empty[_tab]!,
+            style: TextStyle(color: colors.textSecondary, fontSize: 16),
+          ),
+        );
+    if (chatId == null) return empty();
+
     return StreamBuilder<List<Message>>(
       stream: chatRepository.watchMessages(chatId),
       builder: (context, snapshot) {
-        final photos = (snapshot.data ?? const <Message>[])
-            .where((m) => m.imageUrl != null)
-            .toList()
-            .reversed
-            .toList();
-        if (snapshot.hasData && photos.isEmpty) {
-          return Center(
-            child: Text(
-              'Фото пока нет',
-              style: TextStyle(color: colors.textSecondary, fontSize: 16),
-            ),
-          );
-        }
-        return GridView.builder(
-          padding: const EdgeInsets.only(bottom: 16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-          ),
-          itemCount: photos.length,
-          itemBuilder: (context, i) => ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image(
-              image: imageProviderFor(photos[i].imageUrl!),
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: colors.card,
-                alignment: Alignment.center,
-                child:
-                    Icon(Icons.broken_image, color: colors.textSecondary),
+        final messages =
+            (snapshot.data ?? const <Message>[]).reversed.toList();
+
+        switch (_tab) {
+          case _MediaTab.photo:
+            final photos = messages
+                .where((m) => m.attachmentKind == AttachmentKind.image)
+                .toList();
+            if (photos.isEmpty) return empty();
+            return GridView.builder(
+              padding: const EdgeInsets.only(bottom: 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
               ),
-            ),
-          ),
-        );
+              itemCount: photos.length,
+              itemBuilder: (context, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image(
+                  image: imageProviderFor(photos[i].attachmentUrl!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    color: colors.card,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.broken_image,
+                        color: colors.textSecondary),
+                  ),
+                ),
+              ),
+            );
+
+          case _MediaTab.video:
+          case _MediaTab.files:
+            final kind = _tab == _MediaTab.video
+                ? AttachmentKind.video
+                : AttachmentKind.file;
+            final items =
+                messages.where((m) => m.attachmentKind == kind).toList();
+            if (items.isEmpty) return empty();
+            return ListView.separated(
+              padding: const EdgeInsets.only(bottom: 16),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                final m = items[i];
+                return GestureDetector(
+                  onTap: () => _open(m.attachmentUrl!),
+                  child: Container(
+                    height: 56,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration:
+                        pillDecoration(colors.surface, radius: 16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          kind == AttachmentKind.video
+                              ? Icons.play_circle_outline
+                              : Icons.insert_drive_file,
+                          color: colors.accent,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            m.attachmentName ??
+                                (kind == AttachmentKind.video
+                                    ? 'Видео'
+                                    : 'Файл'),
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          formatTime(m.sentAt),
+                          style: TextStyle(
+                              color: colors.textSecondary, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+
+          case _MediaTab.links:
+            final links = [
+              for (final m in messages) ...extractLinks(m.text),
+            ];
+            if (links.isEmpty) return empty();
+            return ListView.separated(
+              padding: const EdgeInsets.only(bottom: 16),
+              itemCount: links.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) => GestureDetector(
+                onTap: () => _open(links[i]),
+                child: Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: pillDecoration(colors.surface, radius: 16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.link, color: colors.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          links[i],
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+        }
       },
     );
   }

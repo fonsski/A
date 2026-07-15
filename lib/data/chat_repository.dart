@@ -13,8 +13,14 @@ abstract class ChatRepository {
 
   Future<void> sendMessage(String chatId, String text);
 
-  /// Отправляет фото (Storage, бакет chat-media).
-  Future<void> sendImage(String chatId, Uint8List bytes, String mimeType);
+  /// Отправляет вложение (Storage, бакет chat-media): фото, видео или файл.
+  Future<void> sendAttachment(
+    String chatId,
+    Uint8List bytes,
+    String mimeType,
+    String filename,
+    AttachmentKind kind,
+  );
 
   /// Сбрасывает счётчик непрочитанных.
   Future<void> markRead(String chatId);

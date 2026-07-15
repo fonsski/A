@@ -192,12 +192,14 @@ create table if not exists public.chat_members (
 );
 
 create table if not exists public.messages (
-  id         bigint generated always as identity primary key,
-  chat_id    uuid not null references public.chats (id) on delete cascade,
-  author_id  uuid not null references public.profiles (id),
-  body       text not null,
-  image_url  text,
-  created_at timestamptz not null default now(),
+  id              bigint generated always as identity primary key,
+  chat_id         uuid not null references public.chats (id) on delete cascade,
+  author_id       uuid not null references public.profiles (id),
+  body            text not null,
+  image_url       text,   -- URL вложения (имя историческое)
+  attachment_type text check (attachment_type in ('image', 'video', 'file')),
+  attachment_name text,
+  created_at      timestamptz not null default now(),
   check (image_url is not null or length(body) between 1 and 4000)
 );
 create index if not exists messages_chat_idx on public.messages (chat_id, id);
@@ -265,13 +267,17 @@ select
   (select count(*) from public.messages m2
     where m2.chat_id = c.id
       and m2.id > cm.last_read_message_id
-      and m2.author_id <> cm.user_id) as unread
+      and m2.author_id <> cm.user_id) as unread,
+  p.avatar_url as peer_avatar,
+  other.user_id as peer_id,
+  lm.attachment_type as last_attachment
 from public.chats c
 join public.chat_members cm on cm.chat_id = c.id
 left join public.chat_members other
        on other.chat_id = c.id and other.user_id <> cm.user_id
 left join public.profiles p on p.id = other.user_id
-left join lateral (select body, created_at from public.messages m
+left join lateral (select body, created_at, attachment_type
+                     from public.messages m
                     where m.chat_id = c.id
                     order by m.id desc limit 1) lm on true;
 

@@ -3,8 +3,19 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
+import 'package:a_messenger/data/models.dart';
 
 void main() {
+  group('extractLinks', () {
+    test('вытаскивает ссылки из текста', () {
+      expect(
+        extractLinks('глянь https://flutter.dev и http://a.ru/x?y=1 потом'),
+        ['https://flutter.dev', 'http://a.ru/x?y=1'],
+      );
+      expect(extractLinks('без ссылок'), isEmpty);
+    });
+  });
+
   group('MockChatRepository: поиск и старт диалога', () {
     late MockChatRepository repo;
 
@@ -28,14 +39,27 @@ void main() {
       expect(messages, isEmpty);
     });
 
-    test('sendImage добавляет фото-сообщение, в списке видно «📷 Фото»',
-        () async {
-      await repo.sendImage('c3', Uint8List.fromList([1, 2, 3]), 'image/png');
-      final messages = await repo.watchMessages('c3').first;
-      expect(messages.last.imageUrl, startsWith('data:image/png'));
-      expect(messages.last.text, isEmpty);
-      final chats = await repo.watchChats().first;
+    test('sendAttachment: фото, видео и файл с правильными превью', () async {
+      final bytes = Uint8List.fromList([1, 2, 3]);
+      await repo.sendAttachment(
+          'c3', bytes, 'image/png', 'pic.png', AttachmentKind.image);
+      var messages = await repo.watchMessages('c3').first;
+      expect(messages.last.attachmentUrl, startsWith('data:image/png'));
+      expect(messages.last.attachmentKind, AttachmentKind.image);
+      var chats = await repo.watchChats().first;
       expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📷 Фото');
+
+      await repo.sendAttachment(
+          'c3', bytes, 'video/mp4', 'clip.mp4', AttachmentKind.video);
+      chats = await repo.watchChats().first;
+      expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 🎬 Видео');
+
+      await repo.sendAttachment('c3', bytes, 'application/pdf', 'doc.pdf',
+          AttachmentKind.file);
+      messages = await repo.watchMessages('c3').first;
+      expect(messages.last.attachmentName, 'doc.pdf');
+      chats = await repo.watchChats().first;
+      expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📎 Файл');
     });
 
     test('startDm повторно возвращает существующий чат', () async {
