@@ -13,8 +13,10 @@ import 'package:a_messenger/auth/mock_auth_repository.dart';
 import 'package:a_messenger/data/chat_repository.dart';
 import 'package:a_messenger/data/friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
+import 'package:a_messenger/data/mock/mock_directory.dart';
 import 'package:a_messenger/data/mock/mock_friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
+import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
@@ -29,6 +31,7 @@ import 'package:a_messenger/screens/new_chat_screen.dart';
 import 'package:a_messenger/screens/new_post_screen.dart';
 import 'package:a_messenger/screens/privacy_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
+import 'package:a_messenger/screens/user_profile_screen.dart';
 import 'package:a_messenger/theme.dart';
 
 const _outDir =
@@ -75,6 +78,7 @@ void main() {
     wallRepository = MockWallRepository();
     privacyRepository = MockPrivacyRepository();
     friendsRepository = MockFriendsRepository();
+    presenceRepository = MockPresenceRepository();
     Directory(_outDir).createSync(recursive: true);
     final fontData = rootBundle.load('assets/fonts/RobotoFlex.ttf');
     final loader = FontLoader('RobotoFlex')..addFont(fontData);
@@ -112,7 +116,7 @@ void main() {
   testWidgets('chat', (tester) async {
     await prepare(
       tester,
-      const ChatScreen(chatId: 'c1', name: 'Viktor Dudovich'),
+      ChatScreen(chatId: 'c1', peer: mockUsers.first),
     );
     await _capture(tester, '04_chat');
   });
@@ -182,16 +186,21 @@ void main() {
   testWidgets('chat info', (tester) async {
     await prepare(
       tester,
-      const ChatInfoScreen(chatId: 'c1', name: 'Viktor Dudovich'),
+      ChatInfoScreen(chatId: 'c1', peer: mockUsers.first),
     );
     await _capture(tester, '18_chat_info');
   });
 
   testWidgets('chat info call bar', (tester) async {
-    await prepare(tester, const ChatInfoScreen(name: 'Viktor Dudovich'));
+    await prepare(tester, ChatInfoScreen(peer: mockUsers.first));
     await tester.tap(find.text('Звонок'));
     await tester.pumpAndSettle();
     await _capture(tester, '19_chat_info_call');
+  });
+
+  testWidgets('user profile', (tester) async {
+    await prepare(tester, UserProfileScreen(user: mockUsers.first));
+    await _capture(tester, '21_user_profile');
   });
 
   testWidgets('friends', (tester) async {

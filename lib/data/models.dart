@@ -22,6 +22,8 @@ class ChatSummary {
     required this.lastText,
     required this.lastAt,
     required this.unread,
+    this.peerId,
+    this.peerUsername,
     this.peerAvatarUrl,
   });
 
@@ -30,7 +32,16 @@ class ChatSummary {
   final String lastText;
   final DateTime? lastAt;
   final int unread;
+  final String? peerId;
+  final String? peerUsername;
   final String? peerAvatarUrl;
+
+  UserSummary get peer => UserSummary(
+        id: peerId ?? '',
+        username: peerUsername ?? '',
+        displayName: peerName,
+        avatarUrl: peerAvatarUrl,
+      );
 }
 
 class Message {
@@ -70,6 +81,7 @@ class Comment {
 class Post {
   const Post({
     required this.id,
+    required this.ownerId, // владелец стены (в моке — username автора)
     required this.authorName,
     required this.authorUsername,
     required this.text,
@@ -82,6 +94,7 @@ class Post {
   });
 
   final String id;
+  final String ownerId;
   final String authorName;
   final String authorUsername;
   final String text;

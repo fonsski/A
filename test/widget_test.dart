@@ -8,8 +8,10 @@ import 'package:a_messenger/data/friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
 import 'package:a_messenger/data/mock/mock_friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
+import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/wall_repository.dart';
+import 'package:a_messenger/screens/user_profile_screen.dart';
 import 'package:a_messenger/main.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
@@ -28,6 +30,7 @@ void main() {
     wallRepository = MockWallRepository();
     privacyRepository = MockPrivacyRepository();
     friendsRepository = MockFriendsRepository();
+    presenceRepository = MockPresenceRepository();
   });
 
   testWidgets('splash → экран входа (сессии нет)', (tester) async {
@@ -249,6 +252,31 @@ void main() {
     // Теперь друзей двое: Viktor Dudovich и Trofim More.
     expect(find.text('Trofim More'), findsOneWidget);
     expect(find.text('Viktor Dudovich'), findsOneWidget);
+  });
+
+  testWidgets('страница друга: профиль, статус «в сети» и его стена',
+      (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // Профиль → друзья → тап по другу открывает его страницу.
+    final profileIcon = find.byWidgetPredicate((w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == 'assets/images/nav_profile.png');
+    await tester.tap(profileIcon);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('друг'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserProfileScreen), findsOneWidget);
+    expect(find.text('@viktor.dud'), findsOneWidget);
+    expect(find.text('в сети'), findsOneWidget); // u1 онлайн в моке
+    expect(find.text('В друзьях'), findsOneWidget);
+    // Его стена: пост про казино от viktor.dud.
+    expect(find.textContaining('казино'), findsOneWidget);
   });
 
   testWidgets('приватность: выбор сохраняется в репозиторий', (tester) async {

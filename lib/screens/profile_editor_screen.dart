@@ -64,10 +64,11 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Аватар обновлён')));
       }
-    } on AuthFailure catch (e) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Аватар не загрузился: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

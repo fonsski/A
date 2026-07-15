@@ -30,16 +30,23 @@ class SupabaseWallRepository implements WallRepository {
 
   Future<void> _refresh() async {
     // Скоры рекомендаций считает БД (feed_for_me, см. fix_005).
+    // Любая ошибка здесь не должна ломать саму выдачу постов.
     try {
-      final scored = await _client.rpc<List<dynamic>>('feed_for_me');
+      final scored = await _client.rpc<dynamic>('feed_for_me');
       _feedScores = {
-        for (final r in scored.cast<Map<String, dynamic>>())
-          r['post_id'] as String: (r['score'] as num).toDouble(),
+        if (scored is List)
+          for (final r in scored.whereType<Map<String, dynamic>>())
+            r['post_id'] as String: (r['score'] as num?)?.toDouble() ?? 0,
       };
-    } on PostgrestException {
-      _feedScores = {}; // функция ещё не применена — лента без ранжирования
+    } catch (_) {
+      _feedScores = {};
     }
-    await _refreshPosts();
+    try {
+      await _refreshPosts();
+    } catch (e) {
+      // Показываем ошибку в UI вместо вечно пустого экрана.
+      _controller.addError(e);
+    }
   }
 
   Future<void> _refreshPosts() async {
@@ -64,6 +71,7 @@ class SupabaseWallRepository implements WallRepository {
           (a['created_at'] as String).compareTo(b['created_at'] as String));
     return Post(
       id: r['id'] as String,
+      ownerId: r['wall_owner_id'] as String,
       authorName: (author['display_name'] ??
           author['username'] ??
           'Кто-то') as String,
@@ -114,6 +122,18 @@ class SupabaseWallRepository implements WallRepository {
     }
 
     return source().map((posts) => posts.where((p) => p.mine).toList());
+  }
+
+  @override
+  Stream<List<Post>> watchWallOf(String userId) {
+    Stream<List<Post>> source() async* {
+      if (_last != null) yield _last!;
+      unawaited(_refresh());
+      yield* _controller.stream;
+    }
+
+    return source()
+        .map((posts) => posts.where((p) => p.ownerId == userId).toList());
   }
 
   @override

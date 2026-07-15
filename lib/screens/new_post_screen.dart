@@ -33,8 +33,16 @@ class _NewPostScreenState extends State<NewPostScreen> {
   Future<void> _publish() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    await wallRepository.createPost(text);
-    if (mounted) Navigator.of(context).pop();
+    try {
+      await wallRepository.createPost(text);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось опубликовать: $e')),
+        );
+      }
+    }
   }
 
   @override

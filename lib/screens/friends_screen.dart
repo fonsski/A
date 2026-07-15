@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
 import 'new_chat_screen.dart';
+import 'user_profile_screen.dart';
 
 /// Друзья и заявки. Входящие можно принять/отклонить,
 /// исходящие — отменить, друзьям — написать.
@@ -234,22 +235,28 @@ class _FriendTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return GestureDetector(
-      onTap: () async {
-        final chatId = await chatRepository.startDm(entry.user);
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              chatId: chatId,
-              name: entry.user.displayName,
-              avatarUrl: entry.user.avatarUrl,
-            ),
-          ),
-        );
-      },
+      // Тап по другу — его страница; иконка чата — сразу диалог.
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => UserProfileScreen(user: entry.user),
+        ),
+      ),
       child: _PersonRow(
         entry: entry,
-        trailing: Icon(Icons.chevron_right, color: colors.accent),
+        trailing: IconButton(
+          tooltip: 'Написать',
+          icon: Icon(Icons.chat_bubble_outline, color: colors.accent),
+          onPressed: () async {
+            final chatId = await chatRepository.startDm(entry.user);
+            if (!context.mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    ChatScreen(chatId: chatId, peer: entry.user),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

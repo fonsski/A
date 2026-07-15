@@ -63,6 +63,12 @@ class SupabaseFriendsRepository implements FriendsRepository {
   }
 
   @override
+  Set<String> get currentFriends => {
+        for (final e in _last ?? const <FriendEntry>[])
+          if (e.status == FriendStatus.friends) e.user.id,
+      };
+
+  @override
   Stream<List<FriendEntry>> watchFriends() async* {
     if (_last != null) yield _last!;
     unawaited(_refresh());

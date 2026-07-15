@@ -48,6 +48,8 @@ class SupabaseChatRepository implements ChatRepository {
               : DateTime.parse(r['last_at'] as String),
           unread: (r['unread'] as num?)?.toInt() ?? 0,
           peerAvatarUrl: r['peer_avatar'] as String?,
+          peerId: r['peer_id'] as String?,
+          peerUsername: r['peer_username'] as String?,
         ),
     ];
     _chatsController.add(_lastChats!);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/presence_repository.dart';
 import '../data/privacy_repository.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -22,10 +23,10 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     });
   }
 
-  void _update(PrivacySettings updated) {
+  Future<void> _update(PrivacySettings updated) async {
     // Оптимистично: UI сразу, база следом.
     setState(() => _settings = updated);
-    privacyRepository.save(updated);
+    await privacyRepository.save(updated);
   }
 
   @override
@@ -80,10 +81,15 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                               s.copyWith(phoneVisibleTo: Audience.values[i])),
                         ),
                         _SegmentedRow(
-                          question: 'Кто видит статус в сети?',
+                          question:
+                              'Кто видит статус в сети?\n(«Я» — скроешь свой, но и чужой не увидишь)',
                           selected: s.onlineVisibleTo.index,
-                          onChanged: (i) => _update(
-                              s.copyWith(onlineVisibleTo: Audience.values[i])),
+                          onChanged: (i) async {
+                            await _update(s.copyWith(
+                                onlineVisibleTo: Audience.values[i]));
+                            // Presence перечитывает видимость сразу.
+                            await presenceRepository.refreshVisibility();
+                          },
                         ),
                         const _ActionRow(
                             question: 'Черный список', action: 'Показать'),

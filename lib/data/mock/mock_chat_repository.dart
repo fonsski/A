@@ -23,6 +23,11 @@ class _MockChat {
 
   ChatSummary get summary => ChatSummary(
         id: id,
+        peerId: peerId,
+        peerUsername: mockUsers
+            .where((u) => u.id == peerId)
+            .map((u) => u.username)
+            .firstOrNull,
         peerName: peerName,
         lastText: messages.isEmpty
             ? ''
