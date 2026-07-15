@@ -19,6 +19,7 @@ import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
 import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
+import 'package:a_messenger/screens/photo_view_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
 import 'package:a_messenger/widgets/common.dart';
 
@@ -115,6 +116,31 @@ void main() {
     // Демо-ответ собеседника приходит через ~1 секунду.
     await tester.pump(const Duration(seconds: 2));
     expect(find.text('А?'), findsWidgets);
+  });
+
+  testWidgets('фото открывается на полный экран и закрывается',
+      (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+
+    // Тап по фото в пузыре — полноэкранный просмотр.
+    final photo = find.byWidgetPredicate((w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == 'assets/images/media.png');
+    await tester.ensureVisible(photo.first);
+    await tester.pumpAndSettle();
+    await tester.tap(photo.first);
+    await tester.pumpAndSettle();
+    expect(find.byType(PhotoViewScreen), findsOneWidget);
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.byType(PhotoViewScreen), findsNothing);
   });
 
   testWidgets('инфо о чате: открытие по шапке, плашка звонка сворачивается',

@@ -46,11 +46,21 @@ class ChatSummary {
 
 enum AttachmentKind { image, video, file }
 
-String attachmentPreview(AttachmentKind kind) => switch (kind) {
-      AttachmentKind.image => '📷 Фото',
-      AttachmentKind.video => '🎬 Видео',
-      AttachmentKind.file => '📎 Файл',
+String attachmentEmoji(AttachmentKind kind) => switch (kind) {
+      AttachmentKind.image => '📷',
+      AttachmentKind.video => '🎬',
+      AttachmentKind.file => '📎',
     };
+
+/// Превью для списка чатов: «📷 Фото» или «📷 подпись», если она есть.
+String attachmentPreview(AttachmentKind kind, [String caption = '']) {
+  final label = switch (kind) {
+    AttachmentKind.image => 'Фото',
+    AttachmentKind.video => 'Видео',
+    AttachmentKind.file => 'Файл',
+  };
+  return '${attachmentEmoji(kind)} ${caption.isEmpty ? label : caption}';
+}
 
 class Message {
   const Message({

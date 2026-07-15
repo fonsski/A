@@ -12,6 +12,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/online_status.dart';
 import 'chat_info_screen.dart';
+import 'photo_view_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.chatId, required this.peer});
@@ -115,8 +116,13 @@ class _ChatScreenState extends State<ChatScreen> {
           mime = picked.mimeType ?? 'application/octet-stream';
           name = picked.name;
       }
+      if (!mounted) return;
+      // Подпись к медиа, как в Telegram; null — передумал отправлять.
+      final caption = await _askCaption(kind, name, bytes);
+      if (caption == null) return;
       await chatRepository.sendAttachment(
-          widget.chatId, bytes, mime, name, kind);
+          widget.chatId, bytes, mime, name, kind,
+          caption: caption);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -125,6 +131,81 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     }
     _inputFocus.requestFocus();
+  }
+
+  Future<String?> _askCaption(
+      AttachmentKind kind, String filename, Uint8List bytes) {
+    final colors = context.colors;
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: colors.surface,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (kind == AttachmentKind.image)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(bytes, height: 200, fit: BoxFit.contain),
+              )
+            else
+              Row(
+                children: [
+                  Icon(
+                    kind == AttachmentKind.video
+                        ? Icons.play_circle_outline
+                        : Icons.insert_drive_file,
+                    color: colors.accent,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      filename,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(color: colors.textPrimary, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 3,
+              minLines: 1,
+              style: TextStyle(color: colors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Подпись (необязательно)',
+                hintStyle:
+                    TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
+              onSubmitted: (_) =>
+                  Navigator.of(dialog).pop(controller.text.trim()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(),
+            child: Text('Отмена',
+                style: TextStyle(color: colors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(controller.text.trim()),
+            child: Text(
+              'Отправить',
+              style: TextStyle(
+                  color: colors.accent, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _scrollDown() {
@@ -296,18 +377,25 @@ class _Attachment extends StatelessWidget {
     final colors = context.colors;
     switch (message.attachmentKind) {
       case AttachmentKind.image || null:
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image(
-            image: imageProviderFor(message.attachmentUrl!),
-            width: 220,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => Container(
+        return GestureDetector(
+          onTap: () => PhotoViewScreen.open(
+            context,
+            message.attachmentUrl!,
+            caption: message.text.isEmpty ? null : message.text,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image(
+              image: imageProviderFor(message.attachmentUrl!),
               width: 220,
-              height: 120,
-              color: colors.bg,
-              alignment: Alignment.center,
-              child: Icon(Icons.broken_image, color: colors.textSecondary),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                width: 220,
+                height: 120,
+                color: colors.bg,
+                alignment: Alignment.center,
+                child: Icon(Icons.broken_image, color: colors.textSecondary),
+              ),
             ),
           ),
         );
