@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
@@ -283,11 +284,47 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-/// Вложение в пузыре: фото — инлайном, видео/файл — плашкой с открытием.
+/// Вложение в пузыре: фото — инлайном, видео — инлайн-плеером,
+/// файл — плашкой с открытием.
 class _Attachment extends StatelessWidget {
   const _Attachment({required this.message});
 
   final Message message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    switch (message.attachmentKind) {
+      case AttachmentKind.image || null:
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image(
+            image: imageProviderFor(message.attachmentUrl!),
+            width: 220,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Container(
+              width: 220,
+              height: 120,
+              color: colors.bg,
+              alignment: Alignment.center,
+              child: Icon(Icons.broken_image, color: colors.textSecondary),
+            ),
+          ),
+        );
+      case AttachmentKind.video:
+        return _VideoBubble(message: message);
+      case AttachmentKind.file:
+        return _AttachmentTile(message: message, isVideo: false);
+    }
+  }
+}
+
+/// Плашка вложения (файл, либо видео там, где плеер недоступен).
+class _AttachmentTile extends StatelessWidget {
+  const _AttachmentTile({required this.message, required this.isVideo});
+
+  final Message message;
+  final bool isVideo;
 
   Future<void> _open(BuildContext context) async {
     final url = message.attachmentUrl!;
@@ -306,24 +343,6 @@ class _Attachment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    if (message.attachmentKind == AttachmentKind.image) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image(
-          image: imageProviderFor(message.attachmentUrl!),
-          width: 220,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => Container(
-            width: 220,
-            height: 120,
-            color: colors.bg,
-            alignment: Alignment.center,
-            child: Icon(Icons.broken_image, color: colors.textSecondary),
-          ),
-        ),
-      );
-    }
-    final isVideo = message.attachmentKind == AttachmentKind.video;
     return InkWell(
       onTap: () => _open(context),
       child: Container(
@@ -350,6 +369,93 @@ class _Attachment extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Инлайн-просмотр видео: тап — play/pause. Если плеер на платформе
+/// недоступен или видео не грузится — обычная плашка с открытием наружу.
+class _VideoBubble extends StatefulWidget {
+  const _VideoBubble({required this.message});
+
+  final Message message;
+
+  @override
+  State<_VideoBubble> createState() => _VideoBubbleState();
+}
+
+class _VideoBubbleState extends State<_VideoBubble> {
+  VideoPlayerController? _controller;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.message.attachmentUrl!;
+    if (!url.startsWith('http')) {
+      _failed = true; // мок-данные — сразу плашка
+      return;
+    }
+    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    _controller = controller;
+    controller.initialize().then((_) {
+      if (mounted) setState(() {});
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final controller = _controller;
+    if (_failed || controller == null) {
+      return _AttachmentTile(message: widget.message, isVideo: true);
+    }
+    if (!controller.value.isInitialized) {
+      return Container(
+        width: 220,
+        height: 124,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 220,
+        child: AspectRatio(
+          aspectRatio: controller.value.aspectRatio,
+          child: GestureDetector(
+            onTap: () => setState(() {
+              controller.value.isPlaying
+                  ? controller.pause()
+                  : controller.play();
+            }),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                VideoPlayer(controller),
+                if (!controller.value.isPlaying)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.textPrimary.withValues(alpha: 0.25),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(Icons.play_arrow, color: colors.bg, size: 32),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
