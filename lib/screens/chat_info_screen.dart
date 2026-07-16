@@ -297,8 +297,10 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             if (photos.isEmpty) return empty();
             return GridView.builder(
               padding: const EdgeInsets.only(bottom: 16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+              // Плитка не крупнее, чем в макете (176px), — на широком
+              // экране колонок становится больше, а не плитка огромнее.
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 180,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
               ),
