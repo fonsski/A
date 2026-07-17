@@ -26,9 +26,10 @@ class PinLock {
       sha256.convert(utf8.encode('$salt:$pin')).toString();
 
   Future<void> setPin(String pin) async {
-    final salt = List.generate(16, (_) => Random.secure().nextInt(256))
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final salt = List.generate(
+      16,
+      (_) => Random.secure().nextInt(256),
+    ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     await _prefs.setString(_saltKey, salt);
     await _prefs.setString(_hashKey, _hash(pin, salt));
   }

@@ -36,8 +36,9 @@ class ProfileScreen extends StatelessWidget {
   Widget _build(BuildContext context, Profile? profile) {
     final colors = context.colors;
     final username = profile?.username ?? '';
-    final displayName =
-        (profile?.displayName?.isNotEmpty ?? false) ? profile!.displayName! : username;
+    final displayName = (profile?.displayName?.isNotEmpty ?? false)
+        ? profile!.displayName!
+        : username;
     return Column(
       children: [
         Padding(
@@ -77,7 +78,8 @@ class ProfileScreen extends StatelessWidget {
                           GestureDetector(
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                  builder: (_) => const FriendsScreen()),
+                                builder: (_) => const FriendsScreen(),
+                              ),
                             ),
                             child: StreamBuilder<List<FriendEntry>>(
                               stream: friendsRepository.watchFriends(),
@@ -85,16 +87,19 @@ class ProfileScreen extends StatelessWidget {
                                 final entries =
                                     snapshot.data ?? const <FriendEntry>[];
                                 final friends = entries
-                                    .where((e) =>
-                                        e.status == FriendStatus.friends)
+                                    .where(
+                                      (e) => e.status == FriendStatus.friends,
+                                    )
                                     .length;
                                 final requests = entries
-                                    .where((e) =>
-                                        e.status == FriendStatus.incoming)
+                                    .where(
+                                      (e) => e.status == FriendStatus.incoming,
+                                    )
                                     .length;
                                 var label = _friendsLabel(friends);
                                 if (requests > 0) {
-                                  label += ' · $requests заявк${requests == 1 ? 'а' : 'и'}';
+                                  label +=
+                                      ' · $requests заявк${requests == 1 ? 'а' : 'и'}';
                                 }
                                 return Text(
                                   label,
@@ -157,8 +162,7 @@ class ProfileScreen extends StatelessWidget {
                 return Center(
                   child: Text(
                     'Постов пока нет',
-                    style:
-                        TextStyle(color: colors.textSecondary, fontSize: 16),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 16),
                   ),
                 );
               }

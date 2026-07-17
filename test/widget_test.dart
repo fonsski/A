@@ -25,14 +25,14 @@ import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/photo_view_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
-import 'package:a_messenger/widgets/common.dart';
 
 void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     pinLock = PinLock(await SharedPreferences.getInstance());
-    authRepository =
-        MockAuthRepository(confirmDelay: const Duration(seconds: 1));
+    authRepository = MockAuthRepository(
+      confirmDelay: const Duration(seconds: 1),
+    );
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
     privacyRepository = MockPrivacyRepository();
@@ -48,8 +48,9 @@ void main() {
     expect(find.text('Войти!'), findsOneWidget);
   });
 
-  testWidgets('полный флоу: регистрация → почта → вход → ник → приложение',
-      (tester) async {
+  testWidgets('полный флоу: регистрация → почта → вход → ник → приложение', (
+    tester,
+  ) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -100,8 +101,9 @@ void main() {
     expect(find.byType(HomeShell), findsOneWidget);
   });
 
-  testWidgets('чат: отправка сообщения, автоответ и фокус на поле ввода',
-      (tester) async {
+  testWidgets('чат: отправка сообщения, автоответ и фокус на поле ввода', (
+    tester,
+  ) async {
     // Сессия сохранилась с прошлого теста — сразу HomeShell.
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
@@ -124,8 +126,7 @@ void main() {
     expect(find.text('А?'), findsWidgets);
   });
 
-  testWidgets('фото открывается на полный экран и закрывается',
-      (tester) async {
+  testWidgets('фото открывается на полный экран и закрывается', (tester) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -133,10 +134,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // Тап по фото в пузыре — полноэкранный просмотр.
-    final photo = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/media.png');
+    final photo = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/media.png',
+    );
     await tester.ensureVisible(photo.first);
     await tester.pumpAndSettle();
     await tester.tap(photo.first);
@@ -149,8 +152,9 @@ void main() {
     expect(find.byType(PhotoViewScreen), findsNothing);
   });
 
-  testWidgets('инфо о чате: открытие по шапке, плашка звонка сворачивается',
-      (tester) async {
+  testWidgets('инфо о чате: открытие по шапке, плашка звонка сворачивается', (
+    tester,
+  ) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -170,8 +174,8 @@ void main() {
     expect(find.text('Видео'), findsWidgets); // кнопка + вкладка медиа
     expect(find.text('Звонок'), findsNothing);
 
-    // Кнопка с аватаром посередине сворачивает обратно.
-    await tester.tap(find.byType(AAvatar).last);
+    // Стрелка посередине сворачивает обратно.
+    await tester.tap(find.byIcon(Icons.reply));
     await tester.pumpAndSettle();
     expect(find.text('Звонок'), findsOneWidget);
     expect(find.text('Аудио'), findsNothing);
@@ -188,10 +192,12 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // Вкладка «Стенка» в нижней навигации.
-    final wallIcon = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/nav_wall.png');
+    final wallIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_wall.png',
+    );
     await tester.tap(wallIcon);
     await tester.pumpAndSettle();
 
@@ -209,8 +215,8 @@ void main() {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    // «+» в шапке чатов открывает поиск.
-    await tester.tap(find.byIcon(Icons.add));
+    // «Человечек+» в шапке чатов открывает поиск.
+    await tester.tap(find.byIcon(Icons.person_add_alt_1));
     await tester.pumpAndSettle();
     expect(find.text('Новый чат'), findsOneWidget);
 
@@ -235,24 +241,26 @@ void main() {
     expect(find.text('Denis Panda'), findsOneWidget);
   });
 
-  testWidgets('редактор профиля: имя сохраняется и видно в профиле',
-      (tester) async {
+  testWidgets('редактор профиля: имя сохраняется и видно в профиле', (
+    tester,
+  ) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    final profileIcon = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/nav_profile.png');
+    final profileIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_profile.png',
+    );
     await tester.tap(profileIcon);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Редактировать'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, 'Тестовое Имя');
-    await tester.ensureVisible(find.text('Сохранить'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Сохранить'));
+    // Сохранение — галочкой в шапке.
+    await tester.tap(find.byIcon(Icons.check_rounded));
     await tester.pumpAndSettle();
 
     // Редактор закрылся, в профиле новое имя (и оно же в репозитории).
@@ -266,10 +274,12 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // Профиль → счётчик друзей с бейджем заявки → экран друзей.
-    final profileIcon = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/nav_profile.png');
+    final profileIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_profile.png',
+    );
     await tester.tap(profileIcon);
     await tester.pumpAndSettle();
     expect(find.textContaining('заявка'), findsOneWidget);
@@ -286,16 +296,19 @@ void main() {
     expect(find.text('Viktor Dudovich'), findsOneWidget);
   });
 
-  testWidgets('страница друга: профиль, статус «в сети» и его стена',
-      (tester) async {
+  testWidgets('страница друга: профиль, статус «в сети» и его стена', (
+    tester,
+  ) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // Профиль → друзья → тап по другу открывает его страницу.
-    final profileIcon = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/nav_profile.png');
+    final profileIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_profile.png',
+    );
     await tester.tap(profileIcon);
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('друг'));
@@ -315,17 +328,22 @@ void main() {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    final settingsIcon = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/nav_settings.png');
+    final settingsIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_settings.png',
+    );
     await tester.tap(settingsIcon);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Настройки стены'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('Показать'), 200,
-        scrollable: find.byType(Scrollable).last);
+    await tester.scrollUntilVisible(
+      find.text('Показать'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Показать'));
     await tester.pumpAndSettle();
@@ -363,10 +381,12 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // Настройки → «Настройки стены» → экран приватности.
-    final settingsIcon = find.byWidgetPredicate((w) =>
-        w is Image &&
-        w.image is AssetImage &&
-        (w.image as AssetImage).assetName == 'assets/images/nav_settings.png');
+    final settingsIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_settings.png',
+    );
     await tester.tap(settingsIcon);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Настройки стены'));

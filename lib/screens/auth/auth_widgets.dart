@@ -60,8 +60,11 @@ class AuthToggle extends StatelessWidget {
     return Container(
       height: 48,
       padding: const EdgeInsets.all(4),
-      decoration: pillDecoration(colors.surface,
-          radius: 24, inset: const Offset(0, -2)),
+      decoration: pillDecoration(
+        colors.surface,
+        radius: 24,
+        inset: const Offset(0, -2),
+      ),
       child: Row(
         children: [segment('Войти', false), segment('Вступить', true)],
       ),
@@ -110,8 +113,11 @@ class AuthField extends StatelessWidget {
         Container(
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: pillDecoration(colors.surface,
-              radius: 24, inset: const Offset(0, -2)),
+          decoration: pillDecoration(
+            colors.surface,
+            radius: 24,
+            inset: const Offset(0, -2),
+          ),
           child: Row(
             children: [
               Expanded(
@@ -125,8 +131,10 @@ class AuthField extends StatelessWidget {
                     border: InputBorder.none,
                     isCollapsed: true,
                     hintText: hint,
-                    hintStyle:
-                        TextStyle(color: colors.textSecondary, fontSize: 16),
+                    hintStyle: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -218,7 +226,7 @@ class AuthLink extends StatelessWidget {
 }
 
 void showAuthError(BuildContext context, Object error) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(error.toString())),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(error.toString())));
 }

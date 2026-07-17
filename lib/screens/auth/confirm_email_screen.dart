@@ -47,10 +47,7 @@ class ConfirmEmailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            AuthButton(
-              label: 'Я подтвердил — войти',
-              onPressed: onGoToLogin,
-            ),
+            AuthButton(label: 'Я подтвердил — войти', onPressed: onGoToLogin),
             const SizedBox(height: 8),
             AuthLink(
               label: 'Отправить письмо ещё раз',

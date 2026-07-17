@@ -36,19 +36,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kNotifyDmPref, value);
     if (value && !await notifier.ensurePermission() && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(notifier.supported
-            ? 'Браузер запретил уведомления — разреши их в настройках сайта'
-            : 'Системные уведомления пока доступны только в веб-версии'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            notifier.supported
+                ? 'Браузер запретил уведомления — разреши их в настройках сайта'
+                : 'Системные уведомления пока доступны только в веб-версии',
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    void openPrivacy() => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const PrivacyScreen()),
-        );
+    void openPrivacy() => Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PrivacyScreen()));
     return Column(
       children: [
         Padding(
@@ -60,11 +64,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
             children: [
-              const _SectionTitle('Приватность и конфиденциальность'),
+              const ASectionTitle('Приватность и конфиденциальность'),
               _SettingsRow('Настройки стены', onTap: openPrivacy),
               _SettingsRow('Общая безопасность', onTap: openPrivacy),
               const SizedBox(height: 16),
-              const _SectionTitle('Уведомления и звуки'),
+              const ASectionTitle('Уведомления и звуки'),
               _SettingsRow(
                 'Личные чаты',
                 trailing: Switch(
@@ -77,22 +81,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const _SettingsRow('Групповые чаты'),
               const _SettingsRow('Уведомления со стены'),
               const SizedBox(height: 16),
-              const _SectionTitle('Оформление и интерфейс'),
+              const ASectionTitle('Оформление и интерфейс'),
               _SettingsRow(
                 'Тема: ${themeMode.value == ThemeMode.dark ? 'тёмная' : 'светлая'}',
-                onTap: () => themeMode.value =
-                    themeMode.value == ThemeMode.dark
-                        ? ThemeMode.light
-                        : ThemeMode.dark,
+                onTap: () => themeMode.value = themeMode.value == ThemeMode.dark
+                    ? ThemeMode.light
+                    : ThemeMode.dark,
               ),
               const _SettingsRow('Размер шрифта'),
               const _SettingsRow('Фон чатов'),
               const SizedBox(height: 16),
-              const _SectionTitle('Память и данные'),
+              const ASectionTitle('Память и данные'),
               const _SettingsRow('Автозагрузка медиа'),
               const _SettingsRow('Использование памяти'),
               const SizedBox(height: 16),
-              const _SectionTitle('Поддержка и информация'),
+              const ASectionTitle('Поддержка и информация'),
               const _SettingsRow('Помощь / FAQ'),
               const _SettingsRow('Связь с поддержкой'),
               _SettingsRow(
@@ -104,33 +107,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const _SectionTitle('Аккаунт'),
+              const ASectionTitle('Аккаунт'),
               _SettingsRow('Выйти', onTap: () => authRepository.signOut()),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: context.colors.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
     );
   }
 }
@@ -169,9 +151,7 @@ class _SettingsRow extends StatelessWidget {
                 ),
               ),
               if (trailing != null)
-                SizedBox(
-                    height: 28,
-                    child: FittedBox(child: trailing)),
+                SizedBox(height: 28, child: FittedBox(child: trailing)),
             ],
           ),
         ),

@@ -90,24 +90,25 @@ class MockAuthRepository implements AuthRepository {
     }
     if (!user.confirmed) {
       throw const AuthFailure(
-          'Почта ещё не подтверждена — проверь письмо\n'
-          '(в демо-режиме подтверждение приходит через ~5 секунд)');
+        'Почта ещё не подтверждена — проверь письмо\n'
+        '(в демо-режиме подтверждение приходит через ~5 секунд)',
+      );
     }
     _emit(_snapshotOf(user));
   }
 
   AuthSnapshot _snapshotOf(_MockUser user) => AuthSnapshot(
-        userId: user.email,
-        email: user.email,
-        profile: Profile(
-          username: user.username,
-          displayName: user.displayName,
-          bio: user.bio,
-          link: user.link,
-          phone: user.phone,
-          avatarUrl: user.avatarUrl,
-        ),
-      );
+    userId: user.email,
+    email: user.email,
+    profile: Profile(
+      username: user.username,
+      displayName: user.displayName,
+      bio: user.bio,
+      link: user.link,
+      phone: user.phone,
+      avatarUrl: user.avatarUrl,
+    ),
+  );
 
   @override
   Future<void> signOut() async => _emit(null);
@@ -130,7 +131,9 @@ class MockAuthRepository implements AuthRepository {
     required String displayName,
   }) async {
     final snapshot = _current;
-    if (snapshot == null) throw const AuthFailure('Сессия истекла — войди заново');
+    if (snapshot == null) {
+      throw const AuthFailure('Сессия истекла — войди заново');
+    }
     final value = username.trim().toLowerCase();
     if (_takenUsernames.contains(value)) {
       throw const AuthFailure('Ник только что заняли — попробуй другой');
@@ -150,7 +153,9 @@ class MockAuthRepository implements AuthRepository {
     required String phone,
   }) async {
     final snapshot = _current;
-    if (snapshot == null) throw const AuthFailure('Сессия истекла — войди заново');
+    if (snapshot == null) {
+      throw const AuthFailure('Сессия истекла — войди заново');
+    }
     String? clean(String v) => v.trim().isEmpty ? null : v.trim();
     final user = _users[snapshot.email]!
       ..displayName = clean(displayName)
@@ -163,7 +168,9 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<void> updateAvatar(Uint8List bytes, String mimeType) async {
     final snapshot = _current;
-    if (snapshot == null) throw const AuthFailure('Сессия истекла — войди заново');
+    if (snapshot == null) {
+      throw const AuthFailure('Сессия истекла — войди заново');
+    }
     final user = _users[snapshot.email]!
       ..avatarUrl = 'data:$mimeType;base64,${base64Encode(bytes)}';
     _emit(_snapshotOf(user));

@@ -38,9 +38,9 @@ class _NewPostScreenState extends State<NewPostScreen> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось опубликовать: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Не удалось опубликовать: $e')));
       }
     }
   }
@@ -48,8 +48,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final username =
-        authRepository.current?.profile?.username ?? 'de.panda';
+    final username = authRepository.current?.profile?.username ?? 'de.panda';
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -65,8 +64,11 @@ class _NewPostScreenState extends State<NewPostScreen> {
                       width: 36,
                       height: 36,
                       decoration: pillDecoration(colors.surface),
-                      child: Icon(Icons.arrow_back,
-                          color: colors.accent, size: 18),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: colors.accent,
+                        size: 18,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -87,8 +89,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                               ),
                             ),
                           ),
-                          Icon(Icons.more_vert,
-                              color: colors.accent, size: 18),
+                          Icon(Icons.more_vert, color: colors.accent, size: 18),
                         ],
                       ),
                     ),

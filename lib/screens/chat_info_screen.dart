@@ -54,16 +54,26 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         child: AAvatar(size: 112, url: widget.peer.avatarUrl),
                       ),
                     ),
+                    // По макету: «назад» слева, меню справа.
                     Align(
-                      alignment: Alignment.topRight,
+                      alignment: Alignment.topLeft,
                       child: GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: Container(
                           width: 48,
                           height: 48,
                           decoration: pillDecoration(colors.surface),
-                          child: Icon(Icons.close, color: colors.accent),
+                          child: Icon(Icons.arrow_back, color: colors.accent),
                         ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: pillDecoration(colors.surface),
+                        child: Icon(Icons.more_vert, color: colors.accent),
                       ),
                     ),
                   ],
@@ -80,8 +90,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 child: Container(
                   height: 48,
                   alignment: Alignment.center,
-                  decoration: pillDecoration(colors.surface,
-                      radius: 36, inset: const Offset(0, -2)),
+                  decoration: pillDecoration(
+                    colors.surface,
+                    radius: 36,
+                    inset: const Offset(0, -2),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -94,8 +107,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.chevron_right,
-                          color: colors.accent, size: 20),
+                      Icon(Icons.chevron_right, color: colors.accent, size: 20),
                     ],
                   ),
                 ),
@@ -125,24 +137,27 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
   Widget _buildActions(AColors colors) {
     Widget action(String label, VoidCallback onTap) => Expanded(
-          child: GestureDetector(
-            onTap: onTap,
-            child: Container(
-              height: 48,
-              alignment: Alignment.center,
-              decoration: pillDecoration(colors.surface,
-                  radius: 24, inset: const Offset(0, -2)),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          decoration: pillDecoration(
+            colors.surface,
+            radius: 24,
+            inset: const Offset(0, -2),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     return Row(
       key: const ValueKey('actions'),
@@ -163,45 +178,51 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   /// Плашка звонка: Аудио | (аватар — свернуть) | Видео.
   Widget _buildCallBar(AColors colors) {
     Widget callButton(String label) => Expanded(
-          child: GestureDetector(
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label-звонки скоро появятся')),
-            ),
-            child: Container(
-              height: 40,
-              alignment: Alignment.center,
-              decoration: pillDecoration(colors.card,
-                  radius: 24, inset: const Offset(0, -2)),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+      child: GestureDetector(
+        onTap: () => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label-звонки скоро появятся'))),
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: pillDecoration(
+            colors.card,
+            radius: 24,
+            inset: const Offset(0, -2),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: colors.accent,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     return Container(
       key: const ValueKey('call-bar'),
       height: 48,
       padding: const EdgeInsets.all(4),
-      decoration: pillDecoration(colors.surface,
-          radius: 24, inset: const Offset(0, -2)),
+      decoration: pillDecoration(
+        colors.surface,
+        radius: 24,
+        inset: const Offset(0, -2),
+      ),
       child: Row(
         children: [
           callButton('Аудио'),
           const SizedBox(width: 4),
+          // В макете v2 по центру — стрелка-свернуть.
           GestureDetector(
             onTap: () => setState(() => _calling = false),
             child: Container(
               width: 40,
               height: 40,
-              padding: const EdgeInsets.all(6),
               decoration: pillDecoration(colors.card, radius: 24),
-              child: AAvatar(size: 28, url: widget.peer.avatarUrl),
+              child: Icon(Icons.reply, color: colors.accent, size: 20),
             ),
           ),
           const SizedBox(width: 4),
@@ -213,35 +234,39 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
   Widget _buildMediaTabs(AColors colors) {
     Widget tab(String label, _MediaTab value) => Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _tab = value),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              height: 40,
-              alignment: Alignment.center,
-              decoration: _tab == value
-                  ? pillDecoration(colors.accent,
-                      radius: 20, inset: const Offset(0, -2))
-                  : null,
-              child: Text(
-                label,
-                style: TextStyle(
-                  color:
-                      _tab == value ? colors.bg : colors.textSecondary,
-                  fontSize: 16,
-                  fontWeight:
-                      _tab == value ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
+      child: GestureDetector(
+        onTap: () => setState(() => _tab = value),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: _tab == value
+              ? pillDecoration(
+                  colors.accent,
+                  radius: 20,
+                  inset: const Offset(0, -2),
+                )
+              : null,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: _tab == value ? colors.bg : colors.textSecondary,
+              fontSize: 16,
+              fontWeight: _tab == value ? FontWeight.w700 : FontWeight.w400,
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     return Container(
       height: 48,
       padding: const EdgeInsets.all(4),
-      decoration: pillDecoration(colors.surface,
-          radius: 24, inset: const Offset(0, -2)),
+      decoration: pillDecoration(
+        colors.surface,
+        radius: 24,
+        inset: const Offset(0, -2),
+      ),
       child: Row(
         children: [
           tab('Фото', _MediaTab.photo),
@@ -266,9 +291,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось открыть')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Не удалось открыть')));
       }
     }
   }
@@ -276,18 +301,17 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   Widget _buildMedia(AColors colors) {
     final chatId = widget.chatId;
     Widget empty() => Center(
-          child: Text(
-            _empty[_tab]!,
-            style: TextStyle(color: colors.textSecondary, fontSize: 16),
-          ),
-        );
+      child: Text(
+        _empty[_tab]!,
+        style: TextStyle(color: colors.textSecondary, fontSize: 16),
+      ),
+    );
     if (chatId == null) return empty();
 
     return StreamBuilder<List<Message>>(
       stream: chatRepository.watchMessages(chatId),
       builder: (context, snapshot) {
-        final messages =
-            (snapshot.data ?? const <Message>[]).reversed.toList();
+        final messages = (snapshot.data ?? const <Message>[]).reversed.toList();
 
         switch (_tab) {
           case _MediaTab.photo:
@@ -309,8 +333,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 onTap: () => PhotoViewScreen.open(
                   context,
                   photos[i].attachmentUrl!,
-                  caption:
-                      photos[i].text.isEmpty ? null : photos[i].text,
+                  caption: photos[i].text.isEmpty ? null : photos[i].text,
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -320,8 +343,10 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                     errorBuilder: (_, _, _) => Container(
                       color: colors.card,
                       alignment: Alignment.center,
-                      child: Icon(Icons.broken_image,
-                          color: colors.textSecondary),
+                      child: Icon(
+                        Icons.broken_image,
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                 ),
@@ -333,8 +358,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             final kind = _tab == _MediaTab.video
                 ? AttachmentKind.video
                 : AttachmentKind.file;
-            final items =
-                messages.where((m) => m.attachmentKind == kind).toList();
+            final items = messages
+                .where((m) => m.attachmentKind == kind)
+                .toList();
             if (items.isEmpty) return empty();
             return ListView.separated(
               padding: const EdgeInsets.only(bottom: 16),
@@ -347,8 +373,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                   child: Container(
                     height: 56,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration:
-                        pillDecoration(colors.surface, radius: 16),
+                    decoration: pillDecoration(colors.surface, radius: 16),
                     child: Row(
                       children: [
                         Icon(
@@ -375,7 +400,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         Text(
                           formatTime(m.sentAt),
                           style: TextStyle(
-                              color: colors.textSecondary, fontSize: 12),
+                            color: colors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -385,9 +412,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             );
 
           case _MediaTab.links:
-            final links = [
-              for (final m in messages) ...extractLinks(m.text),
-            ];
+            final links = [for (final m in messages) ...extractLinks(m.text)];
             if (links.isEmpty) return empty();
             return ListView.separated(
               padding: const EdgeInsets.only(bottom: 16),

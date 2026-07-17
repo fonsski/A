@@ -39,8 +39,10 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       context: context,
       builder: (dialog) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('Код для входа',
-            style: TextStyle(color: colors.textPrimary, fontSize: 18)),
+        title: Text(
+          'Код для входа',
+          style: TextStyle(color: colors.textPrimary, fontSize: 18),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -49,29 +51,35 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                 controller: current,
                 obscureText: true,
                 keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(hintText: 'Текущий код'),
+                decoration: const InputDecoration(hintText: 'Текущий код'),
               ),
             TextField(
               controller: fresh,
               obscureText: true,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                  hintText: 'Новый код (пусто — убрать)'),
+                hintText: 'Новый код (пусто — убрать)',
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialog).pop(false),
-            child:
-                Text('Отмена', style: TextStyle(color: colors.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: colors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialog).pop(true),
-            child: Text('Сохранить',
-                style: TextStyle(
-                    color: colors.accent, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Сохранить',
+              style: TextStyle(
+                color: colors.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -79,26 +87,32 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     if (saved != true || !context.mounted) return;
 
     if (pinLock.hasPin && !pinLock.unlock(current.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Текущий код неверный')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Текущий код неверный')));
       return;
     }
     final newPin = fresh.text.trim();
     if (newPin.isEmpty) {
       await pinLock.clear();
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Код убран')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Код убран')));
       }
     } else if (newPin.length < 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Код — минимум 4 символа')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Код — минимум 4 символа')));
       return;
     } else {
       await pinLock.setPin(newPin);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Код установлен — спросим при следующем входе')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Код установлен — спросим при следующем входе'),
+          ),
+        );
       }
     }
     setState(() {}); // обновить подпись Установить/Изменить
@@ -117,8 +131,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               child: AHeader(
                 title: 'Приватность и конфиденциальность',
                 onTapCircle: () => Navigator.of(context).pop(),
-                circleChild:
-                    Icon(Icons.arrow_back, color: colors.bg, size: 18),
+                circleChild: Icon(Icons.arrow_back, color: colors.bg, size: 18),
               ),
             ),
             Expanded(
@@ -127,41 +140,46 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                       children: [
-                        const _SectionTitle('Настройки стены'),
+                        const ASectionTitle('Настройки стены'),
                         _SegmentedRow(
                           question: 'Кто видит мою стену?',
                           selected: s.wallVisibleTo.index,
                           onChanged: (i) => _update(
-                              s.copyWith(wallVisibleTo: Audience.values[i])),
+                            s.copyWith(wallVisibleTo: Audience.values[i]),
+                          ),
                         ),
                         _SegmentedRow(
                           question: 'Кто может оставлять записи на стене?',
                           selected: s.wallPostBy.index,
                           onChanged: (i) => _update(
-                              s.copyWith(wallPostBy: Audience.values[i])),
+                            s.copyWith(wallPostBy: Audience.values[i]),
+                          ),
                         ),
                         _SegmentedRow(
                           question: 'Кто может комментировать мои записи?',
                           options: const ['Все', 'Друзья', 'Никто'],
                           selected: s.commentsBy.index,
                           onChanged: (i) => _update(
-                              s.copyWith(commentsBy: Audience.values[i])),
+                            s.copyWith(commentsBy: Audience.values[i]),
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        const _SectionTitle('Общая безопасность'),
+                        const ASectionTitle('Общая безопасность'),
                         _SegmentedRow(
                           question: 'Кто видит мой номер?',
                           selected: s.phoneVisibleTo.index,
                           onChanged: (i) => _update(
-                              s.copyWith(phoneVisibleTo: Audience.values[i])),
+                            s.copyWith(phoneVisibleTo: Audience.values[i]),
+                          ),
                         ),
                         _SegmentedRow(
                           question:
                               'Кто видит статус в сети?\n(«Я» — скроешь свой, но и чужой не увидишь)',
                           selected: s.onlineVisibleTo.index,
                           onChanged: (i) async {
-                            await _update(s.copyWith(
-                                onlineVisibleTo: Audience.values[i]));
+                            await _update(
+                              s.copyWith(onlineVisibleTo: Audience.values[i]),
+                            );
                             // Presence перечитывает видимость сразу.
                             await presenceRepository.refreshVisibility();
                           },
@@ -171,7 +189,8 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                           action: 'Показать',
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) => const BlacklistScreen()),
+                              builder: (_) => const BlacklistScreen(),
+                            ),
                           ),
                         ),
                         _ActionRow(
@@ -183,27 +202,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                     ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 1, bottom: 12),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: context.colors.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -254,8 +252,11 @@ class _SegmentedRow extends StatelessWidget {
                         height: 36,
                         alignment: Alignment.center,
                         decoration: i == selected
-                            ? pillDecoration(colors.card,
-                                radius: 36, inset: const Offset(0, -2))
+                            ? pillDecoration(
+                                colors.card,
+                                radius: 36,
+                                inset: const Offset(0, -2),
+                              )
                             : null,
                         child: Text(
                           options[i],
@@ -279,11 +280,7 @@ class _SegmentedRow extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.question,
-    required this.action,
-    this.onTap,
-  });
+  const _ActionRow({required this.question, required this.action, this.onTap});
 
   final String question;
   final String action;
@@ -315,8 +312,7 @@ class _ActionRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       action,
-                      style:
-                          TextStyle(color: colors.textPrimary, fontSize: 16),
+                      style: TextStyle(color: colors.textPrimary, fontSize: 16),
                     ),
                   ),
                   if (onTap != null)

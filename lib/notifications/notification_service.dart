@@ -6,7 +6,8 @@ import '../auth/auth_repository.dart';
 import '../data/chat_repository.dart';
 import '../data/models.dart';
 import 'web_notifier_stub.dart'
-    if (dart.library.js_interop) 'web_notifier_web.dart' as notifier;
+    if (dart.library.js_interop) 'web_notifier_web.dart'
+    as notifier;
 
 /// Чат, открытый на экране прямо сейчас, — по нему не уведомляем.
 String? activeChatId;
@@ -20,8 +21,8 @@ class NotificationService {
     this._prefs, {
     Future<bool> Function()? ensurePermission,
     void Function(String title, String body)? show,
-  })  : _ensurePermission = ensurePermission ?? notifier.ensurePermission,
-        _show = show ?? notifier.showSystemNotification;
+  }) : _ensurePermission = ensurePermission ?? notifier.ensurePermission,
+       _show = show ?? notifier.showSystemNotification;
 
   final SharedPreferences _prefs;
   final Future<bool> Function() _ensurePermission;

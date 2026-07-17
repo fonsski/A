@@ -46,8 +46,10 @@ void main() {
       await lock.setPin('1234');
       await lock.clear();
       expect(lock.hasPin, isFalse);
-      expect(PinLock(await SharedPreferences.getInstance()).locked.value,
-          isFalse);
+      expect(
+        PinLock(await SharedPreferences.getInstance()).locked.value,
+        isFalse,
+      );
     });
   });
 
@@ -61,8 +63,9 @@ void main() {
           unread: unread,
         );
 
-    Future<(NotificationService, List<String>)> make(
-        {bool enabled = true}) async {
+    Future<(NotificationService, List<String>)> make({
+      bool enabled = true,
+    }) async {
       SharedPreferences.setMockInitialValues({kNotifyDmPref: enabled});
       final calls = <String>[];
       final service = NotificationService(
@@ -109,7 +112,10 @@ void main() {
 
     test('блокировка удаляет дружбу и попадает в список', () async {
       const viktor = UserSummary(
-          id: 'u1', username: 'viktor.dud', displayName: 'Viktor Dudovich');
+        id: 'u1',
+        username: 'viktor.dud',
+        displayName: 'Viktor Dudovich',
+      );
       await repo.block(viktor);
 
       final friends = await repo.watchFriends().first;
@@ -121,8 +127,11 @@ void main() {
     });
 
     test('разблокировка очищает список', () async {
-      const trofim =
-          UserSummary(id: 'u3', username: 'trofim', displayName: 'Trofim');
+      const trofim = UserSummary(
+        id: 'u3',
+        username: 'trofim',
+        displayName: 'Trofim',
+      );
       await repo.block(trofim);
       await repo.unblock('u3');
       expect(await repo.watchBlocked().first, isEmpty);

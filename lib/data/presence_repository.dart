@@ -19,7 +19,7 @@ late final PresenceRepository presenceRepository;
 
 class MockPresenceRepository implements PresenceRepository {
   MockPresenceRepository({Set<String>? online})
-      : _online = online ?? {'u1', 'u4'};
+    : _online = online ?? {'u1', 'u4'};
 
   final Set<String> _online;
 

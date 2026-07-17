@@ -40,8 +40,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() {
       _emailError = validateEmail(_email.text);
       _passwordError = validatePassword(_password.text);
-      _password2Error =
-          _password2.text != _password.text ? 'Пароли не совпадают' : null;
+      _password2Error = _password2.text != _password.text
+          ? 'Пароли не совпадают'
+          : null;
     });
     if (_emailError != null ||
         _passwordError != null ||
@@ -51,10 +52,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _busy = true);
     try {
-      await authRepository.signUp(
-        email: _email.text,
-        password: _password.text,
-      );
+      await authRepository.signUp(email: _email.text, password: _password.text);
       if (!mounted) return;
       widget.onRegistered(_email.text.trim());
     } on AuthFailure catch (e) {

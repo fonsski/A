@@ -50,13 +50,16 @@ class SupabaseWallRepository implements WallRepository {
   }
 
   Future<void> _refreshPosts() async {
-    final rows = await _client.from('posts').select('''
+    final rows = await _client
+        .from('posts')
+        .select('''
           id, wall_owner_id, author_id, body, created_at,
           author:profiles!posts_author_id_fkey(username, display_name, avatar_url),
           comments(id, body, image_url, created_at,
                    author:profiles!comments_author_id_fkey(username, display_name, avatar_url)),
           reactions(user_id)
-        ''').order('created_at', ascending: false);
+        ''')
+        .order('created_at', ascending: false);
 
     _last = [for (final r in rows) _toPost(r)];
     _controller.add(_last!);
@@ -65,16 +68,18 @@ class SupabaseWallRepository implements WallRepository {
   Post _toPost(Map<String, dynamic> r) {
     final author = (r['author'] ?? const {}) as Map<String, dynamic>;
     final reactions = (r['reactions'] as List?) ?? const [];
-    final comments = ((r['comments'] as List?) ?? const [])
-        .cast<Map<String, dynamic>>()
-      ..sort((a, b) =>
-          (a['created_at'] as String).compareTo(b['created_at'] as String));
+    final comments =
+        ((r['comments'] as List?) ?? const []).cast<Map<String, dynamic>>()
+          ..sort(
+            (a, b) => (a['created_at'] as String).compareTo(
+              b['created_at'] as String,
+            ),
+          );
     return Post(
       id: r['id'] as String,
       ownerId: r['wall_owner_id'] as String,
-      authorName: (author['display_name'] ??
-          author['username'] ??
-          'Кто-то') as String,
+      authorName:
+          (author['display_name'] ?? author['username'] ?? 'Кто-то') as String,
       authorUsername: (author['username'] ?? '') as String,
       text: r['body'] as String,
       createdAt: DateTime.parse(r['created_at'] as String),
@@ -86,12 +91,16 @@ class SupabaseWallRepository implements WallRepository {
         for (final c in comments)
           Comment(
             id: c['id'] as String,
-            authorName: ((c['author'] ?? const {})
-                    as Map<String, dynamic>)['display_name'] as String? ??
+            authorName:
+                ((c['author'] ?? const {})
+                        as Map<String, dynamic>)['display_name']
+                    as String? ??
                 'Кто-то',
             text: c['body'] as String,
-            authorAvatarUrl: ((c['author'] ?? const {})
-                as Map<String, dynamic>)['avatar_url'] as String?,
+            authorAvatarUrl:
+                ((c['author'] ?? const {})
+                        as Map<String, dynamic>)['avatar_url']
+                    as String?,
           ),
       ],
     );
@@ -99,11 +108,10 @@ class SupabaseWallRepository implements WallRepository {
 
   /// Лента «А?»: чужие посты по убыванию скора рекомендаций.
   List<Post> _rankedFeed(List<Post> posts) {
-    return posts.where((p) => !p.mine).toList()
-      ..sort((a, b) {
-        final cmp = (_feedScores[b.id] ?? 0).compareTo(_feedScores[a.id] ?? 0);
-        return cmp != 0 ? cmp : b.createdAt.compareTo(a.createdAt);
-      });
+    return posts.where((p) => !p.mine).toList()..sort((a, b) {
+      final cmp = (_feedScores[b.id] ?? 0).compareTo(_feedScores[a.id] ?? 0);
+      return cmp != 0 ? cmp : b.createdAt.compareTo(a.createdAt);
+    });
   }
 
   @override
@@ -132,8 +140,9 @@ class SupabaseWallRepository implements WallRepository {
       yield* _controller.stream;
     }
 
-    return source()
-        .map((posts) => posts.where((p) => p.ownerId == userId).toList());
+    return source().map(
+      (posts) => posts.where((p) => p.ownerId == userId).toList(),
+    );
   }
 
   @override
@@ -159,9 +168,11 @@ class SupabaseWallRepository implements WallRepository {
           .eq('post_id', postId)
           .eq('user_id', _uid);
     } else {
-      await _client
-          .from('reactions')
-          .upsert({'post_id': postId, 'user_id': _uid, 'kind': 'aga'});
+      await _client.from('reactions').upsert({
+        'post_id': postId,
+        'user_id': _uid,
+        'kind': 'aga',
+      });
     }
     await _refresh();
   }

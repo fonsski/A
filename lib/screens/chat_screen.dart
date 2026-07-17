@@ -57,10 +57,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void _openInfo() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatInfoScreen(
-          chatId: widget.chatId,
-          peer: widget.peer,
-        ),
+        builder: (_) =>
+            ChatInfoScreen(chatId: widget.chatId, peer: widget.peer),
       ),
     );
   }
@@ -84,8 +82,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ])
               ListTile(
                 leading: Icon(icon, color: colors.accent),
-                title: Text(label,
-                    style: TextStyle(color: colors.textPrimary)),
+                title: Text(label, style: TextStyle(color: colors.textPrimary)),
                 onTap: () => Navigator.of(sheet).pop(kind),
               ),
           ],
@@ -111,8 +108,9 @@ class _ChatScreenState extends State<ChatScreen> {
           mime = picked.mimeType ?? 'image/jpeg';
           name = picked.name;
         case AttachmentKind.video:
-          final picked =
-              await ImagePicker().pickVideo(source: ImageSource.gallery);
+          final picked = await ImagePicker().pickVideo(
+            source: ImageSource.gallery,
+          );
           if (picked == null) return;
           bytes = await picked.readAsBytes();
           mime = picked.mimeType ?? 'video/mp4';
@@ -129,28 +127,35 @@ class _ChatScreenState extends State<ChatScreen> {
       final caption = await _askCaption(kind, name, bytes);
       if (caption == null) return;
       await chatRepository.sendAttachment(
-          widget.chatId, bytes, mime, name, kind,
-          caption: caption);
+        widget.chatId,
+        bytes,
+        mime,
+        name,
+        kind,
+        caption: caption,
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Вложение не отправилось: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Вложение не отправилось: $e')));
       }
     }
     _inputFocus.requestFocus();
   }
 
   Future<String?> _askCaption(
-      AttachmentKind kind, String filename, Uint8List bytes) {
+    AttachmentKind kind,
+    String filename,
+    Uint8List bytes,
+  ) {
     final colors = context.colors;
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (dialog) => AlertDialog(
         backgroundColor: colors.surface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,8 +179,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(
                       filename,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(color: colors.textPrimary, fontSize: 14),
+                      style: TextStyle(color: colors.textPrimary, fontSize: 14),
                     ),
                   ),
                 ],
@@ -189,8 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
               style: TextStyle(color: colors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Подпись (необязательно)',
-                hintStyle:
-                    TextStyle(color: colors.textSecondary, fontSize: 14),
+                hintStyle: TextStyle(color: colors.textSecondary, fontSize: 14),
               ),
               onSubmitted: (_) =>
                   Navigator.of(dialog).pop(controller.text.trim()),
@@ -200,15 +203,19 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialog).pop(),
-            child: Text('Отмена',
-                style: TextStyle(color: colors.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: colors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialog).pop(controller.text.trim()),
             child: Text(
               'Отправить',
               style: TextStyle(
-                  color: colors.accent, fontWeight: FontWeight.w700),
+                color: colors.accent,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -216,10 +223,18 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  var _didInitialScroll = false;
+
+  /// Прыгаем в конец при открытии и при новых сообщениях, но только если
+  /// пользователь и так у низа — читающего историю вниз не утаскиваем.
   void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      if (!_scroll.hasClients) return;
+      final position = _scroll.position;
+      final nearBottom = position.maxScrollExtent - position.pixels < 120;
+      if (!_didInitialScroll || nearBottom) {
+        _didInitialScroll = true;
+        position.jumpTo(position.maxScrollExtent);
       }
     });
   }
@@ -280,8 +295,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ],
                               ),
                             ),
-                            Icon(Icons.more_vert,
-                                color: colors.accent, size: 20),
+                            Icon(
+                              Icons.more_vert,
+                              color: colors.accent,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                           ],
                         ),
@@ -301,8 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(13, 16, 13, 16),
                     itemCount: messages.length,
-                    itemBuilder: (context, i) =>
-                        _Bubble(message: messages[i]),
+                    itemBuilder: (context, i) => _Bubble(message: messages[i]),
                   );
                 },
               ),
@@ -336,8 +353,10 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             suffixIcon: IconButton(
                               tooltip: 'Прикрепить',
-                              icon: Icon(Icons.attach_file,
-                                  color: colors.textSecondary),
+                              icon: Icon(
+                                Icons.attach_file,
+                                color: colors.textSecondary,
+                              ),
                               onPressed: _attach,
                             ),
                           ),
@@ -496,11 +515,14 @@ class _VideoBubbleState extends State<_VideoBubble> {
     }
     final controller = VideoPlayerController.networkUrl(Uri.parse(url));
     _controller = controller;
-    controller.initialize().then((_) {
-      if (mounted) setState(() {});
-    }).catchError((_) {
-      if (mounted) setState(() => _failed = true);
-    });
+    controller
+        .initialize()
+        .then((_) {
+          if (mounted) setState(() {});
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _failed = true);
+        });
   }
 
   @override
@@ -583,8 +605,7 @@ class _Bubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (message.attachmentUrl != null)
-              _Attachment(message: message),
+            if (message.attachmentUrl != null) _Attachment(message: message),
             if (message.text.isNotEmpty)
               Text(
                 message.text,

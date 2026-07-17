@@ -25,8 +25,7 @@ class FriendsScreen extends StatelessWidget {
               child: AHeader(
                 title: 'Друзья',
                 onTapCircle: () => Navigator.of(context).pop(),
-                circleChild:
-                    Icon(Icons.arrow_back, color: colors.bg, size: 18),
+                circleChild: Icon(Icons.arrow_back, color: colors.bg, size: 18),
               ),
             ),
             Expanded(
@@ -51,14 +50,17 @@ class FriendsScreen extends StatelessWidget {
                           Text(
                             'Пока никого нет',
                             style: TextStyle(
-                                color: colors.textSecondary, fontSize: 16),
+                              color: colors.textSecondary,
+                              fontSize: 16,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           APill(
                             color: colors.accent,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                  builder: (_) => const NewChatScreen()),
+                                builder: (_) => const NewChatScreen(),
+                              ),
                             ),
                             child: Text(
                               'Найти людей',
@@ -73,19 +75,23 @@ class FriendsScreen extends StatelessWidget {
                       ),
                     );
                   }
+                  const sectionPadding = EdgeInsets.fromLTRB(28, 8, 28, 12);
                   return ListView(
                     padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
                     children: [
                       if (incoming.isNotEmpty) ...[
-                        const _SectionTitle('Заявки'),
+                        const ASectionTitle('Заявки', padding: sectionPadding),
                         for (final e in incoming) _IncomingTile(entry: e),
                       ],
                       if (outgoing.isNotEmpty) ...[
-                        const _SectionTitle('Отправленные'),
+                        const ASectionTitle(
+                          'Отправленные',
+                          padding: sectionPadding,
+                        ),
                         for (final e in outgoing) _OutgoingTile(entry: e),
                       ],
                       if (friends.isNotEmpty) ...[
-                        const _SectionTitle('Друзья'),
+                        const ASectionTitle('Друзья', padding: sectionPadding),
                         for (final e in friends) _FriendTile(entry: e),
                       ],
                     ],
@@ -100,73 +106,6 @@ class FriendsScreen extends StatelessWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 8, 28, 12),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: context.colors.textPrimary,
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _PersonRow extends StatelessWidget {
-  const _PersonRow({required this.entry, required this.trailing});
-
-  final FriendEntry entry;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Container(
-      height: 64,
-      color: colors.surface,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 13),
-      child: Row(
-        children: [
-          AAvatar(size: 48, url: entry.user.avatarUrl),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.user.displayName,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '@${entry.user.username}',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-          trailing,
-        ],
-      ),
-    );
-  }
-}
-
 class _IncomingTile extends StatelessWidget {
   const _IncomingTile({required this.entry});
 
@@ -175,8 +114,10 @@ class _IncomingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return _PersonRow(
-      entry: entry,
+    return AUserTile(
+      name: entry.user.displayName,
+      username: entry.user.username,
+      avatarUrl: entry.user.avatarUrl,
       trailing: Row(
         children: [
           GestureDetector(
@@ -194,8 +135,10 @@ class _IncomingTile extends StatelessWidget {
             child: Container(
               width: 36,
               height: 36,
-              decoration: pillDecoration(colors.surface,
-                  borderColor: colors.accent),
+              decoration: pillDecoration(
+                colors.surface,
+                borderColor: colors.accent,
+              ),
               child: Icon(Icons.close, color: colors.accent, size: 20),
             ),
           ),
@@ -213,8 +156,10 @@ class _OutgoingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return _PersonRow(
-      entry: entry,
+    return AUserTile(
+      name: entry.user.displayName,
+      username: entry.user.username,
+      avatarUrl: entry.user.avatarUrl,
       trailing: TextButton(
         onPressed: () => friendsRepository.remove(entry.user.id),
         child: Text(
@@ -234,29 +179,26 @@ class _FriendTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return GestureDetector(
-      // Тап по другу — его страница; иконка чата — сразу диалог.
+    // Тап по другу — его страница; иконка чата — сразу диалог.
+    return AUserTile(
+      name: entry.user.displayName,
+      username: entry.user.username,
+      avatarUrl: entry.user.avatarUrl,
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => UserProfileScreen(user: entry.user),
-        ),
+        MaterialPageRoute(builder: (_) => UserProfileScreen(user: entry.user)),
       ),
-      child: _PersonRow(
-        entry: entry,
-        trailing: IconButton(
-          tooltip: 'Написать',
-          icon: Icon(Icons.chat_bubble_outline, color: colors.accent),
-          onPressed: () async {
-            final chatId = await chatRepository.startDm(entry.user);
-            if (!context.mounted) return;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    ChatScreen(chatId: chatId, peer: entry.user),
-              ),
-            );
-          },
-        ),
+      trailing: IconButton(
+        tooltip: 'Написать',
+        icon: Icon(Icons.chat_bubble_outline, color: colors.accent),
+        onPressed: () async {
+          final chatId = await chatRepository.startDm(entry.user);
+          if (!context.mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ChatScreen(chatId: chatId, peer: entry.user),
+            ),
+          );
+        },
       ),
     );
   }

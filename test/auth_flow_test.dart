@@ -16,7 +16,15 @@ void main() {
 
     test('отклоняет некорректные', () {
       for (final bad in [
-        '', 'ab', 'a' * 31, '.abc', 'abc.', 'a..b', 'Привет', 'a b', '@abc',
+        '',
+        'ab',
+        'a' * 31,
+        '.abc',
+        'abc.',
+        'a..b',
+        'Привет',
+        'a b',
+        '@abc',
         '_abc',
       ]) {
         expect(validateUsernameFormat(bad), isNotNull, reason: bad);
@@ -47,18 +55,20 @@ void main() {
       expect(repo.current!.needsUsername, isTrue);
     });
 
-    test('claimUsername закрепляет ник, повторная регистрация ника — ошибка',
-        () async {
-      await repo.signUp(email: 'new@a.ru', password: 'password1');
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-      await repo.signIn(identifier: 'new@a.ru', password: 'password1');
+    test(
+      'claimUsername закрепляет ник, повторная регистрация ника — ошибка',
+      () async {
+        await repo.signUp(email: 'new@a.ru', password: 'password1');
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        await repo.signIn(identifier: 'new@a.ru', password: 'password1');
 
-      expect(await repo.isUsernameAvailable('viktor'), isTrue);
-      await repo.claimUsername(username: 'viktor', displayName: 'Viktor');
-      expect(repo.current!.needsUsername, isFalse);
-      expect(repo.current!.profile!.username, 'viktor');
-      expect(await repo.isUsernameAvailable('viktor'), isFalse);
-    });
+        expect(await repo.isUsernameAvailable('viktor'), isTrue);
+        await repo.claimUsername(username: 'viktor', displayName: 'Viktor');
+        expect(repo.current!.needsUsername, isFalse);
+        expect(repo.current!.profile!.username, 'viktor');
+        expect(await repo.isUsernameAvailable('viktor'), isFalse);
+      },
+    );
 
     test('вход по @нику', () async {
       await repo.signIn(identifier: '@de.panda', password: 'password1');
@@ -80,10 +90,7 @@ void main() {
 
     test('updateAvatar кладёт data-URI в профиль', () async {
       await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
-      await repo.updateAvatar(
-        Uint8List.fromList([1, 2, 3]),
-        'image/png',
-      );
+      await repo.updateAvatar(Uint8List.fromList([1, 2, 3]), 'image/png');
       expect(repo.current!.profile!.avatarUrl, startsWith('data:image/png'));
     });
 

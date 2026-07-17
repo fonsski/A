@@ -37,18 +37,21 @@ class MockWallRepository implements WallRepository {
     final now = DateTime.now();
     _posts.addAll([
       _MockPost(
-        id: 'p1',
-        authorName: 'Trofim More',
-        authorUsername: 'trofim',
-        text: _lorem,
-        createdAt: now.subtract(const Duration(hours: 2)),
-        agaCount: 3,
-      )..comments.add(const Comment(
-          id: 'cm1',
-          authorName: 'Viktor Vozduh',
-          text: 'Помогите лечением аутисту!',
-          imageAsset: 'assets/images/post_photo.png',
-        )),
+          id: 'p1',
+          authorName: 'Trofim More',
+          authorUsername: 'trofim',
+          text: _lorem,
+          createdAt: now.subtract(const Duration(hours: 2)),
+          agaCount: 3,
+        )
+        ..comments.add(
+          const Comment(
+            id: 'cm1',
+            authorName: 'Viktor Vozduh',
+            text: 'Помогите лечением аутисту!',
+            imageAsset: 'assets/images/post_photo.png',
+          ),
+        ),
       _MockPost(
         id: 'p2',
         authorName: 'Viktor Vozdux',
@@ -61,7 +64,8 @@ class MockWallRepository implements WallRepository {
         id: 'p3',
         authorName: 'Sasha Kirpich',
         authorUsername: 'kirpich',
-        text: 'Прокачал ниву: багажник на крышу, шноркель, силовые бамперы. '
+        text:
+            'Прокачал ниву: багажник на крышу, шноркель, силовые бамперы. '
             'Теперь можно в горы!',
         createdAt: now.subtract(const Duration(hours: 8)),
         agaCount: 2,
@@ -70,7 +74,8 @@ class MockWallRepository implements WallRepository {
         id: 'p4',
         authorName: 'Sasha Kirpich',
         authorUsername: 'kirpich',
-        text: 'Выбираю резину на ниву для грязи, посоветуйте что-нибудь '
+        text:
+            'Выбираю резину на ниву для грязи, посоветуйте что-нибудь '
             'злое и вечное.',
         createdAt: now.subtract(const Duration(hours: 20)),
       ),
@@ -88,26 +93,28 @@ class MockWallRepository implements WallRepository {
   final _controller = StreamController<List<Post>>.broadcast();
   var _nextId = 100;
 
-  String get _myUsername =>
-      authRepository.current?.profile?.username ?? 'me';
+  String get _myUsername => authRepository.current?.profile?.username ?? 'me';
   String get _myName =>
       authRepository.current?.profile?.displayName ?? _myUsername;
 
-  List<Post> get _snapshot => _posts
-      .map((p) => Post(
-            id: p.id,
-            ownerId: p.authorUsername,
-            authorName: p.authorName,
-            authorUsername: p.authorUsername,
-            text: p.text,
-            createdAt: p.createdAt,
-            agaCount: p.agaCount,
-            myAga: p.myAga,
-            mine: p.authorUsername == _myUsername,
-            comments: List.unmodifiable(p.comments),
-          ))
-      .toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  List<Post> get _snapshot =>
+      _posts
+          .map(
+            (p) => Post(
+              id: p.id,
+              ownerId: p.authorUsername,
+              authorName: p.authorName,
+              authorUsername: p.authorUsername,
+              text: p.text,
+              createdAt: p.createdAt,
+              agaCount: p.agaCount,
+              myAga: p.myAga,
+              mine: p.authorUsername == _myUsername,
+              comments: List.unmodifiable(p.comments),
+            ),
+          )
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   void _notify() => _controller.add(_snapshot);
 
@@ -139,14 +146,16 @@ class MockWallRepository implements WallRepository {
   @override
   Stream<List<Post>> watchMine() async* {
     yield _snapshot.where((p) => p.mine).toList();
-    yield* _controller.stream
-        .map((posts) => posts.where((p) => p.mine).toList());
+    yield* _controller.stream.map(
+      (posts) => posts.where((p) => p.mine).toList(),
+    );
   }
 
   @override
   Stream<List<Post>> watchWallOf(String userId) {
     // В моке владелец стены — username автора; id из справочника.
-    final username = mockUsers
+    final username =
+        mockUsers
             .where((u) => u.id == userId)
             .map((u) => u.username)
             .firstOrNull ??
@@ -163,13 +172,15 @@ class MockWallRepository implements WallRepository {
 
   @override
   Future<void> createPost(String text) async {
-    _posts.add(_MockPost(
-      id: 'p${_nextId++}',
-      authorName: _myName,
-      authorUsername: _myUsername,
-      text: text,
-      createdAt: DateTime.now(),
-    ));
+    _posts.add(
+      _MockPost(
+        id: 'p${_nextId++}',
+        authorName: _myName,
+        authorUsername: _myUsername,
+        text: text,
+        createdAt: DateTime.now(),
+      ),
+    );
     _notify();
   }
 
@@ -183,11 +194,10 @@ class MockWallRepository implements WallRepository {
 
   @override
   Future<void> addComment(String postId, String text) async {
-    _posts.firstWhere((p) => p.id == postId).comments.add(Comment(
-          id: 'cm${_nextId++}',
-          authorName: _myName,
-          text: text,
-        ));
+    _posts
+        .firstWhere((p) => p.id == postId)
+        .comments
+        .add(Comment(id: 'cm${_nextId++}', authorName: _myName, text: text));
     _notify();
   }
 }

@@ -15,13 +15,16 @@ double feedScore({
   bool friendAuthor = false,
   DateTime? now,
 }) {
-  final ageSeconds =
-      (now ?? DateTime.now()).difference(createdAt).inSeconds.toDouble();
+  final ageSeconds = (now ?? DateTime.now())
+      .difference(createdAt)
+      .inSeconds
+      .toDouble();
   return exp(-ageSeconds / 172800) // полураспад ~2 суток
-      + (friendAuthor ? 2.0 : 0)
-      + (likedAuthor ? 1.5 : 0)
-      + 0.5 * log(1 + reactionCount)
-      + 2.0 * similarity;
+      +
+      (friendAuthor ? 2.0 : 0) +
+      (likedAuthor ? 1.5 : 0) +
+      0.5 * log(1 + reactionCount) +
+      2.0 * similarity;
 }
 
 final _wordRe = RegExp(r'[a-zа-яё0-9]+');

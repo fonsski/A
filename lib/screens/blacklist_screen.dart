@@ -21,8 +21,7 @@ class BlacklistScreen extends StatelessWidget {
               child: AHeader(
                 title: 'Чёрный список',
                 onTapCircle: () => Navigator.of(context).pop(),
-                circleChild:
-                    Icon(Icons.arrow_back, color: colors.bg, size: 18),
+                circleChild: Icon(Icons.arrow_back, color: colors.bg, size: 18),
               ),
             ),
             Expanded(
@@ -35,7 +34,9 @@ class BlacklistScreen extends StatelessWidget {
                       child: Text(
                         'Список пуст — и это прекрасно',
                         style: TextStyle(
-                            color: colors.textSecondary, fontSize: 16),
+                          color: colors.textSecondary,
+                          fontSize: 16,
+                        ),
                       ),
                     );
                   }
@@ -44,50 +45,19 @@ class BlacklistScreen extends StatelessWidget {
                     itemCount: blocked.length,
                     itemBuilder: (context, i) {
                       final user = blocked[i];
-                      return Container(
-                        height: 64,
-                        color: colors.surface,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 13),
-                        child: Row(
-                          children: [
-                            AAvatar(size: 48, url: user.avatarUrl),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    user.displayName,
-                                    style: TextStyle(
-                                      color: colors.textPrimary,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  Text(
-                                    '@${user.username}',
-                                    style: TextStyle(
-                                        color: colors.textSecondary,
-                                        fontSize: 14),
-                                  ),
-                                ],
-                              ),
+                      return AUserTile(
+                        name: user.displayName,
+                        username: user.username,
+                        avatarUrl: user.avatarUrl,
+                        trailing: TextButton(
+                          onPressed: () => friendsRepository.unblock(user.id),
+                          child: Text(
+                            'Разблокировать',
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 14,
                             ),
-                            TextButton(
-                              onPressed: () =>
-                                  friendsRepository.unblock(user.id),
-                              child: Text(
-                                'Разблокировать',
-                                style: TextStyle(
-                                    color: colors.accent, fontSize: 14),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       );
                     },

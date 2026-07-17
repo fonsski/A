@@ -44,11 +44,13 @@ class _PickUsernameScreenState extends State<PickUsernameScreen> {
     // Живая проверка занятости с debounce, финальная гарантия — на сервере.
     _debounce = Timer(const Duration(milliseconds: 400), () async {
       setState(() => _availability = _Availability.checking);
-      final free =
-          await authRepository.isUsernameAvailable(raw.trim().toLowerCase());
+      final free = await authRepository.isUsernameAvailable(
+        raw.trim().toLowerCase(),
+      );
       if (!mounted || _username.text != raw) return;
-      setState(() =>
-          _availability = free ? _Availability.free : _Availability.taken);
+      setState(
+        () => _availability = free ? _Availability.free : _Availability.taken,
+      );
     });
   }
 
@@ -79,10 +81,10 @@ class _PickUsernameScreenState extends State<PickUsernameScreen> {
     final colors = context.colors;
     return switch (_availability) {
       _Availability.checking => const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
       _Availability.free => Icon(Icons.check, color: Colors.green, size: 20),
       _Availability.taken => Icon(Icons.close, color: colors.accent, size: 20),
       _Availability.unknown => const SizedBox.shrink(),

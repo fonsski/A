@@ -30,8 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     setState(() {
-      _identifierError =
-          _identifier.text.trim().isEmpty ? 'Введи почту или ник' : null;
+      _identifierError = _identifier.text.trim().isEmpty
+          ? 'Введи почту или ник'
+          : null;
       _passwordError = _password.text.isEmpty ? 'Введи пароль' : null;
     });
     if (_identifierError != null || _passwordError != null) return;

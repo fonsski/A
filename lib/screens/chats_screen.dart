@@ -51,7 +51,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
               const SizedBox(height: 8),
               AHeader(
                 title: 'Чаты',
-                circleChild: Icon(Icons.add, color: colors.bg, size: 20),
+                circleChild: Icon(
+                  Icons.person_add_alt_1,
+                  color: colors.bg,
+                  size: 18,
+                ),
                 onTapCircle: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const NewChatScreen()),
                 ),
@@ -66,8 +70,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     border: InputBorder.none,
                     isCollapsed: true,
                     hintText: 'Поиск по чатам...',
-                    hintStyle:
-                        TextStyle(color: colors.textSecondary, fontSize: 14),
+                    hintStyle: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
@@ -80,16 +86,21 @@ class _ChatsScreenState extends State<ChatsScreen> {
             stream: chatRepository.watchChats(),
             builder: (context, snapshot) {
               final chats = (snapshot.data ?? const <ChatSummary>[])
-                  .where((c) => _query.isEmpty ||
-                      c.peerName.toLowerCase().contains(_query.toLowerCase()))
+                  .where(
+                    (c) =>
+                        _query.isEmpty ||
+                        c.peerName.toLowerCase().contains(_query.toLowerCase()),
+                  )
                   .toList();
               if (snapshot.hasData && chats.isEmpty) {
                 if (_query.isNotEmpty) {
                   return Center(
                     child: Text(
                       'Ничего не нашлось',
-                      style:
-                          TextStyle(color: colors.textSecondary, fontSize: 16),
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 16,
+                      ),
                     ),
                   );
                 }
@@ -100,14 +111,17 @@ class _ChatsScreenState extends State<ChatsScreen> {
                       Text(
                         'Пока нет чатов',
                         style: TextStyle(
-                            color: colors.textSecondary, fontSize: 16),
+                          color: colors.textSecondary,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       APill(
                         color: colors.accent,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const NewChatScreen()),
+                            builder: (_) => const NewChatScreen(),
+                          ),
                         ),
                         child: Text(
                           'Найти собеседника',

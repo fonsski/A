@@ -29,11 +29,14 @@ final themeMode = ValueNotifier<ThemeMode>(ThemeMode.light);
 
 /// Восстанавливает сохранённую тему и сохраняет каждое переключение.
 Future<void> initTheme(SharedPreferences prefs) async {
-  themeMode.value =
-      prefs.getString('theme') == 'dark' ? ThemeMode.dark : ThemeMode.light;
+  themeMode.value = prefs.getString('theme') == 'dark'
+      ? ThemeMode.dark
+      : ThemeMode.light;
   themeMode.addListener(() {
     prefs.setString(
-        'theme', themeMode.value == ThemeMode.dark ? 'dark' : 'light');
+      'theme',
+      themeMode.value == ThemeMode.dark ? 'dark' : 'light',
+    );
   });
 }
 

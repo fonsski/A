@@ -62,8 +62,10 @@ class PhotoViewScreen extends StatelessWidget {
               child: SafeArea(
                 child: Container(
                   margin: const EdgeInsets.all(16),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(16),

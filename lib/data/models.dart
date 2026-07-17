@@ -37,20 +37,20 @@ class ChatSummary {
   final String? peerAvatarUrl;
 
   UserSummary get peer => UserSummary(
-        id: peerId ?? '',
-        username: peerUsername ?? '',
-        displayName: peerName,
-        avatarUrl: peerAvatarUrl,
-      );
+    id: peerId ?? '',
+    username: peerUsername ?? '',
+    displayName: peerName,
+    avatarUrl: peerAvatarUrl,
+  );
 }
 
 enum AttachmentKind { image, video, file }
 
 String attachmentEmoji(AttachmentKind kind) => switch (kind) {
-      AttachmentKind.image => '📷',
-      AttachmentKind.video => '🎬',
-      AttachmentKind.file => '📎',
-    };
+  AttachmentKind.image => '📷',
+  AttachmentKind.video => '🎬',
+  AttachmentKind.file => '📎',
+};
 
 /// Превью для списка чатов: «📷 Фото» или «📷 подпись», если она есть.
 String attachmentPreview(AttachmentKind kind, [String caption = '']) {
