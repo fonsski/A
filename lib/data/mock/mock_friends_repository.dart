@@ -14,18 +14,18 @@ class MockFriendsRepository implements FriendsRepository {
   final _controller = StreamController<List<FriendEntry>>.broadcast();
 
   List<FriendEntry> get _snapshot => [
-        for (final user in mockUsers)
-          if (_statuses.containsKey(user.id))
-            FriendEntry(user: user, status: _statuses[user.id]!),
-      ];
+    for (final user in mockUsers)
+      if (_statuses.containsKey(user.id))
+        FriendEntry(user: user, status: _statuses[user.id]!),
+  ];
 
   void _notify() => _controller.add(_snapshot);
 
   @override
   Set<String> get currentFriends => {
-        for (final e in _statuses.entries)
-          if (e.value == FriendStatus.friends) e.key,
-      };
+    for (final e in _statuses.entries)
+      if (e.value == FriendStatus.friends) e.key,
+  };
 
   @override
   Stream<List<FriendEntry>> watchFriends() async* {
@@ -59,11 +59,12 @@ class MockFriendsRepository implements FriendsRepository {
   }
 
   final _blocked = <String>{};
-  final _blockedController =
-      StreamController<List<UserSummary>>.broadcast();
+  final _blockedController = StreamController<List<UserSummary>>.broadcast();
 
-  List<UserSummary> get _blockedSnapshot =>
-      [for (final u in mockUsers) if (_blocked.contains(u.id)) u];
+  List<UserSummary> get _blockedSnapshot => [
+    for (final u in mockUsers)
+      if (_blocked.contains(u.id)) u,
+  ];
 
   @override
   Set<String> get currentBlocked => Set.unmodifiable(_blocked);

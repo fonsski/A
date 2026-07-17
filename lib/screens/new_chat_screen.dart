@@ -82,8 +82,11 @@ class _NewChatScreenState extends State<NewChatScreen> {
                           width: 36,
                           height: 36,
                           decoration: pillDecoration(colors.surface),
-                          child: Icon(Icons.arrow_back,
-                              color: colors.accent, size: 18),
+                          child: Icon(
+                            Icons.arrow_back,
+                            color: colors.accent,
+                            size: 18,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -112,14 +115,15 @@ class _NewChatScreenState extends State<NewChatScreen> {
                       controller: _controller,
                       autofocus: true,
                       onChanged: _onQueryChanged,
-                      style:
-                          TextStyle(color: colors.textPrimary, fontSize: 14),
+                      style: TextStyle(color: colors.textPrimary, fontSize: 14),
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         isCollapsed: true,
                         hintText: '@ник или имя...',
                         hintStyle: TextStyle(
-                            color: colors.textSecondary, fontSize: 14),
+                          color: colors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -131,28 +135,24 @@ class _NewChatScreenState extends State<NewChatScreen> {
               child: _searching
                   ? const Center(child: CircularProgressIndicator())
                   : _results.isEmpty
-                      ? Center(
-                          child: Text(
-                            _searched
-                                ? 'Никого не нашлось'
-                                : 'Найди собеседника по @нику\nили имени',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: colors.textSecondary,
-                              fontSize: 16,
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: EdgeInsets.zero,
-                          itemCount: _results.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (context, i) => _UserTile(
-                            user: _results[i],
-                            onTap: () => _openDm(_results[i]),
-                          ),
+                  ? Center(
+                      child: Text(
+                        _searched
+                            ? 'Никого не нашлось'
+                            : 'Найди собеседника по @нику\nили имени',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 16,
                         ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: _results.length,
+                      itemBuilder: (context, i) =>
+                          _resultTile(context, _results[i]),
+                    ),
             ),
           ],
         ),
@@ -161,63 +161,29 @@ class _NewChatScreenState extends State<NewChatScreen> {
   }
 }
 
-class _UserTile extends StatelessWidget {
-  const _UserTile({required this.user, required this.onTap});
-
-  final UserSummary user;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
+extension on _NewChatScreenState {
+  Widget _resultTile(BuildContext context, UserSummary user) {
     final colors = context.colors;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 64,
-        color: colors.surface,
-        padding: const EdgeInsets.symmetric(horizontal: 13),
-        child: Row(
-          children: [
-            AAvatar(size: 48, url: user.avatarUrl),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.displayName,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '@${user.username}',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: 'В друзья',
-              icon: Icon(Icons.person_add_alt_1, color: colors.accent),
-              onPressed: () {
-                friendsRepository.sendRequest(user.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text('Заявка @${user.username} отправлена')),
-                );
-              },
-            ),
-            Icon(Icons.chevron_right, color: colors.accent),
-          ],
-        ),
+    return AUserTile(
+      name: user.displayName,
+      username: user.username,
+      avatarUrl: user.avatarUrl,
+      onTap: () => _openDm(user),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'В друзья',
+            icon: Icon(Icons.person_add_alt_1, color: colors.accent),
+            onPressed: () {
+              friendsRepository.sendRequest(user.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Заявка @${user.username} отправлена')),
+              );
+            },
+          ),
+          Icon(Icons.chevron_right, color: colors.accent),
+        ],
       ),
     );
   }

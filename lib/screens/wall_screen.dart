@@ -53,17 +53,19 @@ class _WallScreenState extends State<WallScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  // В макете — белая пилюля с красным текстом по центру.
                   APill(
-                    color: colors.accent,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const NewPostScreen()),
                     ),
-                    child: Text(
-                      'Новый пост?',
-                      style: TextStyle(
-                        color: colors.bg,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                    child: Center(
+                      child: Text(
+                        'Новый пост?',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

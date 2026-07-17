@@ -74,18 +74,20 @@ void main() {
       expect(mine.any((p) => p.text == 'мой собственный пост'), isTrue);
     });
 
-    test('«Ага!» посту про ниву поднимает второй пост того же автора',
-        () async {
-      final repo = MockWallRepository();
-      // Лайкаем пост Кирпича про ниву (p3).
-      await repo.toggleAga('p3');
-      final feed = await repo.watchFeed().first;
+    test(
+      '«Ага!» посту про ниву поднимает второй пост того же автора',
+      () async {
+        final repo = MockWallRepository();
+        // Лайкаем пост Кирпича про ниву (p3).
+        await repo.toggleAga('p3');
+        final feed = await repo.watchFeed().first;
 
-      final ids = feed.map((p) => p.id).toList();
-      // Второй пост Кирпича (p4, тоже про ниву) обгоняет пост-ровесник
-      // про казино (p5) и более свежий lorem-пост (p2).
-      expect(ids.indexOf('p4'), lessThan(ids.indexOf('p5')));
-      expect(ids.indexOf('p4'), lessThan(ids.indexOf('p2')));
-    });
+        final ids = feed.map((p) => p.id).toList();
+        // Второй пост Кирпича (p4, тоже про ниву) обгоняет пост-ровесник
+        // про казино (p5) и более свежий lorem-пост (p2).
+        expect(ids.indexOf('p4'), lessThan(ids.indexOf('p5')));
+        expect(ids.indexOf('p4'), lessThan(ids.indexOf('p2')));
+      },
+    );
   });
 }

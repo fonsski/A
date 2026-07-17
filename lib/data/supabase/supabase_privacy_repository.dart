@@ -11,16 +11,16 @@ class SupabasePrivacyRepository implements PrivacyRepository {
   String get _uid => _client.auth.currentUser!.id;
 
   static Audience _from(String value) => switch (value) {
-        'all' => Audience.all,
-        'friends' => Audience.friends,
-        _ => Audience.me, // 'me' и 'nobody'
-      };
+    'all' => Audience.all,
+    'friends' => Audience.friends,
+    _ => Audience.me, // 'me' и 'nobody'
+  };
 
   static String _to(Audience a, {bool nobody = false}) => switch (a) {
-        Audience.all => 'all',
-        Audience.friends => 'friends',
-        Audience.me => nobody ? 'nobody' : 'me',
-      };
+    Audience.all => 'all',
+    Audience.friends => 'friends',
+    Audience.me => nobody ? 'nobody' : 'me',
+  };
 
   @override
   Future<PrivacySettings> load() async {

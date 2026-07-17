@@ -84,10 +84,11 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       if (!email.contains('@') || email.startsWith('@')) {
         // Вход по нику: ищем почту через security definer-функцию.
-        final username =
-            email.startsWith('@') ? email.substring(1) : email;
-        final result = await _client
-            .rpc<String?>('email_for_username', params: {'login': username});
+        final username = email.startsWith('@') ? email.substring(1) : email;
+        final result = await _client.rpc<String?>(
+          'email_for_username',
+          params: {'login': username},
+        );
         if (result == null) {
           throw const AuthFailure('Неверная почта/ник или пароль');
         }
@@ -104,8 +105,7 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> resendConfirmation(String email) async {
-    await _client.auth
-        .resend(type: sb.OtpType.signup, email: email.trim());
+    await _client.auth.resend(type: sb.OtpType.signup, email: email.trim());
   }
 
   @override
@@ -129,10 +129,15 @@ class SupabaseAuthRepository implements AuthRepository {
     if (user == null) throw const AuthFailure('Сессия истекла — войди заново');
     final value = username.trim().toLowerCase();
     try {
-      await _client.from('profiles').update({
-        'username': value,
-        'display_name': displayName.trim().isEmpty ? value : displayName.trim(),
-      }).eq('id', user.id);
+      await _client
+          .from('profiles')
+          .update({
+            'username': value,
+            'display_name': displayName.trim().isEmpty
+                ? value
+                : displayName.trim(),
+          })
+          .eq('id', user.id);
     } on sb.PostgrestException catch (e) {
       if (e.code == '23505') {
         throw const AuthFailure('Ник только что заняли — попробуй другой');
@@ -152,12 +157,15 @@ class SupabaseAuthRepository implements AuthRepository {
     final user = _client.auth.currentUser;
     if (user == null) throw const AuthFailure('Сессия истекла — войди заново');
     String? clean(String v) => v.trim().isEmpty ? null : v.trim();
-    await _client.from('profiles').update({
-      'display_name': clean(displayName),
-      'bio': clean(bio),
-      'links': clean(link) == null ? [] : [clean(link)],
-      'phone': clean(phone),
-    }).eq('id', user.id);
+    await _client
+        .from('profiles')
+        .update({
+          'display_name': clean(displayName),
+          'bio': clean(bio),
+          'links': clean(link) == null ? [] : [clean(link)],
+          'phone': clean(phone),
+        })
+        .eq('id', user.id);
     _emit(await _load(user));
   }
 
@@ -167,17 +175,21 @@ class SupabaseAuthRepository implements AuthRepository {
     if (user == null) throw const AuthFailure('Сессия истекла — войди заново');
     final ext = mimeType.split('/').last;
     final path = '${user.id}/avatar.$ext';
-    await _client.storage.from('avatars').uploadBinary(
+    await _client.storage
+        .from('avatars')
+        .uploadBinary(
           path,
           bytes,
           fileOptions: sb.FileOptions(contentType: mimeType, upsert: true),
         );
     // Метка версии, чтобы кэш браузера не показывал старую картинку.
-    final url = '${_client.storage.from('avatars').getPublicUrl(path)}'
+    final url =
+        '${_client.storage.from('avatars').getPublicUrl(path)}'
         '?v=${DateTime.now().millisecondsSinceEpoch}';
     await _client
         .from('profiles')
-        .update({'avatar_url': url}).eq('id', user.id);
+        .update({'avatar_url': url})
+        .eq('id', user.id);
     _emit(await _load(user));
   }
 
@@ -186,8 +198,7 @@ class SupabaseAuthRepository implements AuthRepository {
       'invalid_credentials' => 'Неверная почта/ник или пароль',
       'email_not_confirmed' => 'Почта ещё не подтверждена — проверь письмо',
       'user_already_exists' ||
-      'email_exists' =>
-        'Эта почта уже зарегистрирована',
+      'email_exists' => 'Эта почта уже зарегистрирована',
       'weak_password' => 'Слишком простой пароль',
       'over_email_send_rate_limit' =>
         'Слишком часто — подожди минуту и попробуй снова',

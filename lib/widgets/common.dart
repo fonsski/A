@@ -112,7 +112,7 @@ class AHeader extends StatelessWidget {
           child: Container(
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 28),
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.center, // в макете заголовки центрированы
             decoration: pillDecoration(colors.accent),
             child: Text(
               title,
@@ -134,10 +134,100 @@ class AHeader extends StatelessWidget {
             decoration: pillDecoration(colors.accent),
             child:
                 circleChild ??
-                Icon(Icons.chevron_right, color: colors.bg, size: 20),
+                Icon(Icons.notifications_none, color: colors.bg, size: 20),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Жирный заголовок секции в списках настроек/друзей.
+class ASectionTitle extends StatelessWidget {
+  const ASectionTitle(
+    this.text, {
+    super.key,
+    this.padding = const EdgeInsets.only(bottom: 12),
+  });
+
+  final String text;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: context.colors.textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+/// Строка пользователя: аватар, имя, @ник и произвольный хвост.
+/// Используется в друзьях, чёрном списке и поиске людей.
+class AUserTile extends StatelessWidget {
+  const AUserTile({
+    super.key,
+    required this.name,
+    required this.username,
+    this.avatarUrl,
+    this.trailing,
+    this.onTap,
+    this.height = 64,
+  });
+
+  final String name;
+  final String username;
+  final String? avatarUrl;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: height,
+        color: colors.surface,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        child: Row(
+          children: [
+            AAvatar(size: 48, url: avatarUrl),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '@$username',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
     );
   }
 }

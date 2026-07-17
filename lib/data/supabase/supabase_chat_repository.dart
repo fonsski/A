@@ -41,15 +41,21 @@ class SupabaseChatRepository implements ChatRepository {
           peerName: (r['peer_name'] ?? 'Чат') as String,
           lastText: switch (r['last_attachment'] as String?) {
             'image' => attachmentPreview(
-                AttachmentKind.image, (r['last_body'] ?? '') as String),
+              AttachmentKind.image,
+              (r['last_body'] ?? '') as String,
+            ),
             'video' => attachmentPreview(
-                AttachmentKind.video, (r['last_body'] ?? '') as String),
+              AttachmentKind.video,
+              (r['last_body'] ?? '') as String,
+            ),
             'file' => attachmentPreview(
-                AttachmentKind.file, (r['last_body'] ?? '') as String),
-            _ => r['last_at'] != null &&
-                    ((r['last_body'] ?? '') as String).isEmpty
-                ? '📎 Вложение'
-                : (r['last_body'] ?? '') as String,
+              AttachmentKind.file,
+              (r['last_body'] ?? '') as String,
+            ),
+            _ =>
+              r['last_at'] != null && ((r['last_body'] ?? '') as String).isEmpty
+                  ? '📎 Вложение'
+                  : (r['last_body'] ?? '') as String,
           },
           lastAt: r['last_at'] == null
               ? null
@@ -77,24 +83,26 @@ class SupabaseChatRepository implements ChatRepository {
         .stream(primaryKey: ['id'])
         .eq('chat_id', chatId)
         .order('id', ascending: true)
-        .map((rows) => [
-              for (final r in rows)
-                Message(
-                  id: '${r['id']}',
-                  chatId: chatId,
-                  text: r['body'] as String,
-                  sentAt: DateTime.parse(r['created_at'] as String),
-                  mine: r['author_id'] == _uid,
-                  attachmentUrl: r['image_url'] as String?,
-                  attachmentKind: switch (r['attachment_type'] as String?) {
-                    'video' => AttachmentKind.video,
-                    'file' => AttachmentKind.file,
-                    'image' => AttachmentKind.image,
-                    _ => r['image_url'] != null ? AttachmentKind.image : null,
-                  },
-                  attachmentName: r['attachment_name'] as String?,
-                ),
-            ]);
+        .map(
+          (rows) => [
+            for (final r in rows)
+              Message(
+                id: '${r['id']}',
+                chatId: chatId,
+                text: r['body'] as String,
+                sentAt: DateTime.parse(r['created_at'] as String),
+                mine: r['author_id'] == _uid,
+                attachmentUrl: r['image_url'] as String?,
+                attachmentKind: switch (r['attachment_type'] as String?) {
+                  'video' => AttachmentKind.video,
+                  'file' => AttachmentKind.file,
+                  'image' => AttachmentKind.image,
+                  _ => r['image_url'] != null ? AttachmentKind.image : null,
+                },
+                attachmentName: r['attachment_name'] as String?,
+              ),
+          ],
+        );
   }
 
   @override
@@ -118,9 +126,10 @@ class SupabaseChatRepository implements ChatRepository {
     // Имя в Storage — своё (кириллица/пробелы ломают ключи),
     // человекочитаемое имя хранится в attachment_name.
     final ext = filename.contains('.') ? filename.split('.').last : 'bin';
-    final path =
-        '$chatId/${DateTime.now().millisecondsSinceEpoch}.$ext';
-    await _client.storage.from('chat-media').uploadBinary(
+    final path = '$chatId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await _client.storage
+        .from('chat-media')
+        .uploadBinary(
           path,
           bytes,
           fileOptions: FileOptions(contentType: mimeType),
@@ -161,8 +170,7 @@ class SupabaseChatRepository implements ChatRepository {
         UserSummary(
           id: r['id'] as String,
           username: r['username'] as String,
-          displayName:
-              (r['display_name'] ?? r['username']) as String,
+          displayName: (r['display_name'] ?? r['username']) as String,
           avatarUrl: r['avatar_url'] as String?,
         ),
     ];
@@ -170,8 +178,10 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<String> startDm(UserSummary peer) async {
-    final chatId =
-        await _client.rpc<String>('start_dm', params: {'peer': peer.id});
+    final chatId = await _client.rpc<String>(
+      'start_dm',
+      params: {'peer': peer.id},
+    );
     await _refreshChats();
     return chatId;
   }

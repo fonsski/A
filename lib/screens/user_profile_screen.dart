@@ -39,8 +39,7 @@ class UserProfileScreen extends StatelessWidget {
               child: AHeader(
                 title: 'Профиль',
                 onTapCircle: () => Navigator.of(context).pop(),
-                circleChild:
-                    Icon(Icons.arrow_back, color: colors.bg, size: 18),
+                circleChild: Icon(Icons.arrow_back, color: colors.bg, size: 18),
               ),
             ),
             const SizedBox(height: 24),
@@ -120,7 +119,9 @@ class UserProfileScreen extends StatelessWidget {
                           'Не удалось загрузить стену:\n${snapshot.error}',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              color: colors.textSecondary, fontSize: 14),
+                            color: colors.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     );
@@ -132,7 +133,9 @@ class UserProfileScreen extends StatelessWidget {
                         'Стена пуста или скрыта настройками приватности',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: colors.textSecondary, fontSize: 16),
+                          color: colors.textSecondary,
+                          fontSize: 16,
+                        ),
                       ),
                     );
                   }
@@ -168,8 +171,9 @@ class _BlockLink extends StatelessWidget {
     return StreamBuilder<List<UserSummary>>(
       stream: friendsRepository.watchBlocked(),
       builder: (context, snapshot) {
-        final blocked =
-            (snapshot.data ?? const <UserSummary>[]).any((u) => u.id == user.id);
+        final blocked = (snapshot.data ?? const <UserSummary>[]).any(
+          (u) => u.id == user.id,
+        );
         return TextButton(
           onPressed: () async {
             if (blocked) {
@@ -179,27 +183,32 @@ class _BlockLink extends StatelessWidget {
                 context: context,
                 builder: (dialog) => AlertDialog(
                   backgroundColor: colors.surface,
-                  title: Text('Заблокировать @${user.username}?',
-                      style: TextStyle(
-                          color: colors.textPrimary, fontSize: 18)),
+                  title: Text(
+                    'Заблокировать @${user.username}?',
+                    style: TextStyle(color: colors.textPrimary, fontSize: 18),
+                  ),
                   content: Text(
                     'Дружба удалится, он(а) перестанет видеть твою стену '
                     'и писать тебе.',
-                    style: TextStyle(
-                        color: colors.textSecondary, fontSize: 14),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 14),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(dialog).pop(false),
-                      child: Text('Отмена',
-                          style: TextStyle(color: colors.textSecondary)),
+                      child: Text(
+                        'Отмена',
+                        style: TextStyle(color: colors.textSecondary),
+                      ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(dialog).pop(true),
-                      child: Text('Заблокировать',
-                          style: TextStyle(
-                              color: colors.accent,
-                              fontWeight: FontWeight.w700)),
+                      child: Text(
+                        'Заблокировать',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -229,28 +238,29 @@ class _FriendButton extends StatelessWidget {
     return StreamBuilder<List<FriendEntry>>(
       stream: friendsRepository.watchFriends(),
       builder: (context, snapshot) {
-        final status = (snapshot.data ?? const <FriendEntry>[])
+        final status =
+            (snapshot.data ?? const <FriendEntry>[])
                 .where((e) => e.user.id == user.id)
                 .map((e) => e.status)
                 .firstOrNull ??
             FriendStatus.none;
         final (label, onTap) = switch (status) {
           FriendStatus.none => (
-              'В друзья',
-              () => friendsRepository.sendRequest(user.id)
-            ),
+            'В друзья',
+            () => friendsRepository.sendRequest(user.id),
+          ),
           FriendStatus.outgoing => (
-              'Заявка ушла',
-              () => friendsRepository.remove(user.id)
-            ),
+            'Заявка ушла',
+            () => friendsRepository.remove(user.id),
+          ),
           FriendStatus.incoming => (
-              'Принять',
-              () => friendsRepository.accept(user.id)
-            ),
+            'Принять',
+            () => friendsRepository.accept(user.id),
+          ),
           FriendStatus.friends => (
-              'В друзьях',
-              () => friendsRepository.remove(user.id)
-            ),
+            'В друзьях',
+            () => friendsRepository.remove(user.id),
+          ),
         };
         return APill(
           borderColor: colors.accent,

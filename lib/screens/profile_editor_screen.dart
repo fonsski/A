@@ -22,8 +22,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   String? _usernameError;
   bool _busy = false;
 
-  Profile get _profile =>
-      authRepository.current?.profile ?? const Profile();
+  Profile get _profile => authRepository.current?.profile ?? const Profile();
 
   @override
   void initState() {
@@ -55,20 +54,18 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     setState(() => _busy = true);
     try {
       final bytes = await picked.readAsBytes();
-      await authRepository.updateAvatar(
-        bytes,
-        picked.mimeType ?? 'image/jpeg',
-      );
+      await authRepository.updateAvatar(bytes, picked.mimeType ?? 'image/jpeg');
       if (mounted) {
         setState(() {}); // перерисовать аватар в шапке
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Аватар обновлён')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Аватар обновлён')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Аватар не загрузился: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Аватар не загрузился: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -107,13 +104,15 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         phone: _phone.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Сохранено')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Сохранено')));
       Navigator.of(context).pop();
     } on AuthFailure catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -140,8 +139,11 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                         colors.surface,
                         borderColor: colors.accent,
                       ),
-                      child: Icon(Icons.arrow_back,
-                          color: colors.accent, size: 18),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: colors.accent,
+                        size: 18,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -161,15 +163,30 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    padding: const EdgeInsets.all(2),
-                    decoration: pillDecoration(
-                      colors.surface,
-                      borderColor: colors.accent,
+                  // Сохранение — галочкой в шапке, как в макете.
+                  GestureDetector(
+                    onTap: _busy ? null : _save,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: pillDecoration(
+                        colors.surface,
+                        borderColor: colors.accent,
+                      ),
+                      child: _busy
+                          ? Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colors.accent,
+                              ),
+                            )
+                          : Icon(
+                              Icons.check_rounded,
+                              color: colors.accent,
+                              size: 20,
+                            ),
                     ),
-                    child: AAvatar(size: 32, url: _profile.avatarUrl),
                   ),
                 ],
               ),
@@ -238,35 +255,6 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     label: 'Номер телефона?',
                     hint: '+7 900 000-00-00',
                     controller: _phone,
-                  ),
-                  const SizedBox(height: 32),
-                  GestureDetector(
-                    onTap: _busy ? null : _save,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: colors.accent,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: _busy
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: colors.bg,
-                              ),
-                            )
-                          : Text(
-                              'Сохранить',
-                              style: TextStyle(
-                                color: colors.bg,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
                   ),
                 ],
               ),

@@ -22,23 +22,25 @@ class _MockChat {
   int unread;
 
   ChatSummary get summary => ChatSummary(
-        id: id,
-        peerId: peerId,
-        peerUsername: mockUsers
-            .where((u) => u.id == peerId)
-            .map((u) => u.username)
-            .firstOrNull,
-        peerName: peerName,
-        lastText: messages.isEmpty
-            ? ''
-            : (messages.last.mine ? 'Me: ' : '') +
-                (messages.last.attachmentKind != null
-                    ? attachmentPreview(
-                        messages.last.attachmentKind!, messages.last.text)
-                    : messages.last.text),
-        lastAt: messages.isEmpty ? null : messages.last.sentAt,
-        unread: unread,
-      );
+    id: id,
+    peerId: peerId,
+    peerUsername: mockUsers
+        .where((u) => u.id == peerId)
+        .map((u) => u.username)
+        .firstOrNull,
+    peerName: peerName,
+    lastText: messages.isEmpty
+        ? ''
+        : (messages.last.mine ? 'Me: ' : '') +
+              (messages.last.attachmentKind != null
+                  ? attachmentPreview(
+                      messages.last.attachmentKind!,
+                      messages.last.text,
+                    )
+                  : messages.last.text),
+    lastAt: messages.isEmpty ? null : messages.last.sentAt,
+    unread: unread,
+  );
 }
 
 /// Чаты в памяти. Собеседник «отвечает» через секунду — удобно смотреть
@@ -47,12 +49,12 @@ class MockChatRepository implements ChatRepository {
   MockChatRepository({this.replyDelay = const Duration(seconds: 1)}) {
     final now = DateTime.now();
     Message msg(String chatId, int n, String text, bool mine) => Message(
-          id: '$chatId-$n',
-          chatId: chatId,
-          text: text,
-          sentAt: now.subtract(Duration(minutes: 90 - n * 7)),
-          mine: mine,
-        );
+      id: '$chatId-$n',
+      chatId: chatId,
+      text: text,
+      sentAt: now.subtract(Duration(minutes: 90 - n * 7)),
+      mine: mine,
+    );
     _chats.addAll([
       _MockChat(
         id: 'c1',
@@ -60,8 +62,12 @@ class MockChatRepository implements ChatRepository {
         peerName: 'Viktor Dudovich',
         unread: 2,
         messages: [
-          msg('c1', 1, 'hi brother, borrow a couple thousand at the casino',
-              false),
+          msg(
+            'c1',
+            1,
+            'hi brother, borrow a couple thousand at the casino',
+            false,
+          ),
           msg('c1', 2, 'Whatsup brother', true),
           Message(
             id: 'c1-3',
@@ -140,7 +146,9 @@ class MockChatRepository implements ChatRepository {
 
   StreamController<List<Message>> _controllerFor(String chatId) =>
       _messageControllers.putIfAbsent(
-          chatId, () => StreamController<List<Message>>.broadcast());
+        chatId,
+        () => StreamController<List<Message>>.broadcast(),
+      );
 
   void _notify(String chatId) {
     _controllerFor(chatId).add(List.unmodifiable(_chat(chatId).messages));
@@ -162,24 +170,28 @@ class MockChatRepository implements ChatRepository {
   @override
   Future<void> sendMessage(String chatId, String text) async {
     final chat = _chat(chatId);
-    chat.messages.add(Message(
-      id: 'm${_nextId++}',
-      chatId: chatId,
-      text: text,
-      sentAt: DateTime.now(),
-      mine: true,
-    ));
+    chat.messages.add(
+      Message(
+        id: 'm${_nextId++}',
+        chatId: chatId,
+        text: text,
+        sentAt: DateTime.now(),
+        mine: true,
+      ),
+    );
     _notify(chatId);
 
     // Демо-ответ собеседника.
     Timer(replyDelay, () {
-      chat.messages.add(Message(
-        id: 'm${_nextId++}',
-        chatId: chatId,
-        text: 'А?',
-        sentAt: DateTime.now(),
-        mine: false,
-      ));
+      chat.messages.add(
+        Message(
+          id: 'm${_nextId++}',
+          chatId: chatId,
+          text: 'А?',
+          sentAt: DateTime.now(),
+          mine: false,
+        ),
+      );
       _notify(chatId);
     });
   }
@@ -193,16 +205,18 @@ class MockChatRepository implements ChatRepository {
     AttachmentKind kind, {
     String caption = '',
   }) async {
-    _chat(chatId).messages.add(Message(
-          id: 'm${_nextId++}',
-          chatId: chatId,
-          text: caption,
-          sentAt: DateTime.now(),
-          mine: true,
-          attachmentUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
-          attachmentKind: kind,
-          attachmentName: filename,
-        ));
+    _chat(chatId).messages.add(
+      Message(
+        id: 'm${_nextId++}',
+        chatId: chatId,
+        text: caption,
+        sentAt: DateTime.now(),
+        mine: true,
+        attachmentUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
+        attachmentKind: kind,
+        attachmentName: filename,
+      ),
+    );
     _notify(chatId);
   }
 
@@ -219,9 +233,11 @@ class MockChatRepository implements ChatRepository {
     if (q.startsWith('@')) q = q.substring(1);
     if (q.isEmpty) return const [];
     return _directory
-        .where((u) =>
-            u.username.toLowerCase().contains(q) ||
-            u.displayName.toLowerCase().contains(q))
+        .where(
+          (u) =>
+              u.username.toLowerCase().contains(q) ||
+              u.displayName.toLowerCase().contains(q),
+        )
         .toList();
   }
 

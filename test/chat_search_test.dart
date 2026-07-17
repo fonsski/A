@@ -33,8 +33,10 @@ void main() {
       final panda = (await repo.searchUsers('de.panda')).single;
       final chatId = await repo.startDm(panda);
       final chats = await repo.watchChats().first;
-      expect(chats.any((c) => c.id == chatId && c.peerName == 'Denis Panda'),
-          isTrue);
+      expect(
+        chats.any((c) => c.id == chatId && c.peerName == 'Denis Panda'),
+        isTrue,
+      );
       final messages = await repo.watchMessages(chatId).first;
       expect(messages, isEmpty);
     });
@@ -42,7 +44,12 @@ void main() {
     test('sendAttachment: фото, видео и файл с правильными превью', () async {
       final bytes = Uint8List.fromList([1, 2, 3]);
       await repo.sendAttachment(
-          'c3', bytes, 'image/png', 'pic.png', AttachmentKind.image);
+        'c3',
+        bytes,
+        'image/png',
+        'pic.png',
+        AttachmentKind.image,
+      );
       var messages = await repo.watchMessages('c3').first;
       expect(messages.last.attachmentUrl, startsWith('data:image/png'));
       expect(messages.last.attachmentKind, AttachmentKind.image);
@@ -50,12 +57,22 @@ void main() {
       expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📷 Фото');
 
       await repo.sendAttachment(
-          'c3', bytes, 'video/mp4', 'clip.mp4', AttachmentKind.video);
+        'c3',
+        bytes,
+        'video/mp4',
+        'clip.mp4',
+        AttachmentKind.video,
+      );
       chats = await repo.watchChats().first;
       expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 🎬 Видео');
 
-      await repo.sendAttachment('c3', bytes, 'application/pdf', 'doc.pdf',
-          AttachmentKind.file);
+      await repo.sendAttachment(
+        'c3',
+        bytes,
+        'application/pdf',
+        'doc.pdf',
+        AttachmentKind.file,
+      );
       messages = await repo.watchMessages('c3').first;
       expect(messages.last.attachmentName, 'doc.pdf');
       chats = await repo.watchChats().first;
@@ -63,8 +80,13 @@ void main() {
 
       // Подпись к медиа попадает в текст сообщения и в превью чата.
       await repo.sendAttachment(
-          'c3', bytes, 'image/png', 'cat.png', AttachmentKind.image,
-          caption: 'мой кот');
+        'c3',
+        bytes,
+        'image/png',
+        'cat.png',
+        AttachmentKind.image,
+        caption: 'мой кот',
+      );
       messages = await repo.watchMessages('c3').first;
       expect(messages.last.text, 'мой кот');
       chats = await repo.watchChats().first;

@@ -19,10 +19,10 @@ class SupabasePresenceRepository implements PresenceRepository {
         .onPresenceJoin((_) => _rebuild())
         .onPresenceLeave((_) => _rebuild())
         .subscribe((status, _) {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        unawaited(refreshVisibility());
-      }
-    });
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            unawaited(refreshVisibility());
+          }
+        });
     _client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
         unawaited(refreshVisibility());
@@ -48,10 +48,7 @@ class SupabasePresenceRepository implements PresenceRepository {
   void _startHeartbeat() {
     _heartbeat?.cancel();
     _touch();
-    _heartbeat = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => _touch(),
-    );
+    _heartbeat = Timer.periodic(const Duration(minutes: 1), (_) => _touch());
   }
 
   Future<void> _touch() async {
@@ -62,7 +59,9 @@ class SupabasePresenceRepository implements PresenceRepository {
           .from('profiles')
           .update({'last_seen_at': DateTime.now().toUtc().toIso8601String()})
           .eq('id', uid);
-    } catch (_) {/* сеть мигнула — следующий тик догонит */}
+    } catch (_) {
+      /* сеть мигнула — следующий тик догонит */
+    }
   }
 
   @override
@@ -132,8 +131,10 @@ class SupabasePresenceRepository implements PresenceRepository {
   @override
   Future<DateTime?> lastSeen(String userId) async {
     try {
-      final result = await _client
-          .rpc<dynamic>('last_seen_of', params: {'target': userId});
+      final result = await _client.rpc<dynamic>(
+        'last_seen_of',
+        params: {'target': userId},
+      );
       if (result is String) return DateTime.parse(result);
     } catch (_) {}
     return null;

@@ -20,9 +20,9 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     _timer = Timer(const Duration(milliseconds: 1600), () {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AuthGate()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthGate()));
     });
   }
 
@@ -39,11 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Center(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(36),
-          child: Image.asset(
-            'assets/images/logo.png',
-            width: 170,
-            height: 170,
-          ),
+          child: Image.asset('assets/images/logo.png', width: 170, height: 170),
         ),
       ),
     );

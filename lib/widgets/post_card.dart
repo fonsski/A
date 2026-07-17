@@ -6,12 +6,7 @@ import 'common.dart';
 
 /// Запись на стенке: автор, текст, «Ага!», комментарии.
 class PostCard extends StatelessWidget {
-  const PostCard({
-    super.key,
-    required this.post,
-    this.onAga,
-    this.onComment,
-  });
+  const PostCard({super.key, required this.post, this.onAga, this.onComment});
 
   final Post post;
   final VoidCallback? onAga;
@@ -62,7 +57,11 @@ class PostCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(Icons.more_vert, size: 20, color: colors.textSecondary),
+                    Icon(
+                      Icons.more_vert,
+                      size: 20,
+                      color: colors.textSecondary,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),

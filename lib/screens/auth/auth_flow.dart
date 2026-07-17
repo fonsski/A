@@ -23,19 +23,19 @@ class _AuthFlowState extends State<AuthFlow> {
   Widget build(BuildContext context) {
     return switch (_page) {
       _AuthPage.login => LoginScreen(
-          onSignUpTap: () => setState(() => _page = _AuthPage.signUp),
-        ),
+        onSignUpTap: () => setState(() => _page = _AuthPage.signUp),
+      ),
       _AuthPage.signUp => SignUpScreen(
-          onLoginTap: () => setState(() => _page = _AuthPage.login),
-          onRegistered: (email) => setState(() {
-            _pendingEmail = email;
-            _page = _AuthPage.confirmEmail;
-          }),
-        ),
+        onLoginTap: () => setState(() => _page = _AuthPage.login),
+        onRegistered: (email) => setState(() {
+          _pendingEmail = email;
+          _page = _AuthPage.confirmEmail;
+        }),
+      ),
       _AuthPage.confirmEmail => ConfirmEmailScreen(
-          email: _pendingEmail,
-          onGoToLogin: () => setState(() => _page = _AuthPage.login),
-        ),
+        email: _pendingEmail,
+        onGoToLogin: () => setState(() => _page = _AuthPage.login),
+      ),
     };
   }
 }

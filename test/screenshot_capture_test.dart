@@ -58,13 +58,13 @@ Widget _wrap(Widget home, {ThemeMode mode = ThemeMode.light}) {
 Future<void> _capture(WidgetTester tester, String name) async {
   // Даём асинхронной декодировке картинок завершиться.
   for (var i = 0; i < 10; i++) {
-    await tester.runAsync(() => Future<void>.delayed(
-          const Duration(milliseconds: 100),
-        ));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
     await tester.pump();
   }
-  final boundary = _boundaryKey.currentContext!.findRenderObject()!
-      as RenderRepaintBoundary;
+  final boundary =
+      _boundaryKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
   await tester.runAsync(() async {
     final image = await boundary.toImage();
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -90,18 +90,23 @@ void main() {
     await loader.load();
   });
 
-  Future<void> prepare(WidgetTester tester, Widget home,
-      {ThemeMode mode = ThemeMode.light}) async {
+  Future<void> prepare(
+    WidgetTester tester,
+    Widget home, {
+    ThemeMode mode = ThemeMode.light,
+  }) async {
     tester.view.physicalSize = const Size(402, 874);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_wrap(home, mode: mode));
   }
 
-  Finder navIcon(String asset) => find.byWidgetPredicate((w) =>
-      w is Image &&
-      w.image is AssetImage &&
-      (w.image as AssetImage).assetName == asset);
+  Finder navIcon(String asset) => find.byWidgetPredicate(
+    (w) =>
+        w is Image &&
+        w.image is AssetImage &&
+        (w.image as AssetImage).assetName == asset,
+  );
 
   testWidgets('splash', (tester) async {
     await prepare(tester, const _SplashOnly());
@@ -119,10 +124,7 @@ void main() {
   });
 
   testWidgets('chat', (tester) async {
-    await prepare(
-      tester,
-      ChatScreen(chatId: 'c1', peer: mockUsers.first),
-    );
+    await prepare(tester, ChatScreen(chatId: 'c1', peer: mockUsers.first));
     await _capture(tester, '04_chat');
   });
 
@@ -189,10 +191,7 @@ void main() {
   });
 
   testWidgets('chat info', (tester) async {
-    await prepare(
-      tester,
-      ChatInfoScreen(chatId: 'c1', peer: mockUsers.first),
-    );
+    await prepare(tester, ChatInfoScreen(chatId: 'c1', peer: mockUsers.first));
     await _capture(tester, '18_chat_info');
   });
 

@@ -37,28 +37,32 @@ class SupabaseFriendsRepository implements FriendsRepository {
       _uid.compareTo(peer) < 0 ? (_uid, peer) : (peer, _uid);
 
   Future<void> _refresh() async {
-    final rows = await _client.from('friendships').select('''
+    final rows = await _client
+        .from('friendships')
+        .select('''
           user_a, user_b, status, requested_by,
           a:profiles!friendships_user_a_fkey(id, username, display_name, avatar_url),
           b:profiles!friendships_user_b_fkey(id, username, display_name, avatar_url)
-        ''').or('user_a.eq.$_uid,user_b.eq.$_uid');
+        ''')
+        .or('user_a.eq.$_uid,user_b.eq.$_uid');
     _last = [
       for (final r in rows)
         () {
-          final peer = ((r['user_a'] == _uid ? r['b'] : r['a']) ?? const {})
-              as Map<String, dynamic>;
+          final peer =
+              ((r['user_a'] == _uid ? r['b'] : r['a']) ?? const {})
+                  as Map<String, dynamic>;
           final status = r['status'] == 'accepted'
               ? FriendStatus.friends
               : r['requested_by'] == _uid
-                  ? FriendStatus.outgoing
-                  : FriendStatus.incoming;
+              ? FriendStatus.outgoing
+              : FriendStatus.incoming;
           return FriendEntry(
             user: UserSummary(
               id: (peer['id'] ?? '') as String,
               username: (peer['username'] ?? '') as String,
-              displayName: (peer['display_name'] ??
-                  peer['username'] ??
-                  'Кто-то') as String,
+              displayName:
+                  (peer['display_name'] ?? peer['username'] ?? 'Кто-то')
+                      as String,
               avatarUrl: peer['avatar_url'] as String?,
             ),
             status: status,
@@ -70,9 +74,9 @@ class SupabaseFriendsRepository implements FriendsRepository {
 
   @override
   Set<String> get currentFriends => {
-        for (final e in _last ?? const <FriendEntry>[])
-          if (e.status == FriendStatus.friends) e.user.id,
-      };
+    for (final e in _last ?? const <FriendEntry>[])
+      if (e.status == FriendStatus.friends) e.user.id,
+  };
 
   @override
   Stream<List<FriendEntry>> watchFriends() async* {
@@ -119,23 +123,21 @@ class SupabaseFriendsRepository implements FriendsRepository {
   @override
   Future<void> remove(String userId) async {
     final (a, b) = _pair(userId);
-    await _client
-        .from('friendships')
-        .delete()
-        .eq('user_a', a)
-        .eq('user_b', b);
+    await _client.from('friendships').delete().eq('user_a', a).eq('user_b', b);
     await _refresh();
   }
 
-  final _blockedController =
-      StreamController<List<UserSummary>>.broadcast();
+  final _blockedController = StreamController<List<UserSummary>>.broadcast();
   List<UserSummary>? _blocked;
 
   Future<void> _refreshBlocked() async {
-    final rows = await _client.from('blacklist').select('''
+    final rows = await _client
+        .from('blacklist')
+        .select('''
           blocked_id,
           blocked:profiles!blacklist_blocked_id_fkey(id, username, display_name, avatar_url)
-        ''').eq('owner_id', _uid);
+        ''')
+        .eq('owner_id', _uid);
     _blocked = [
       for (final r in rows)
         () {
@@ -153,8 +155,9 @@ class SupabaseFriendsRepository implements FriendsRepository {
   }
 
   @override
-  Set<String> get currentBlocked =>
-      {for (final u in _blocked ?? const <UserSummary>[]) u.id};
+  Set<String> get currentBlocked => {
+    for (final u in _blocked ?? const <UserSummary>[]) u.id,
+  };
 
   @override
   Stream<List<UserSummary>> watchBlocked() async* {
