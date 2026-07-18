@@ -234,12 +234,13 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Stream<String?> watchPinned(String chatId) {
+  Stream<List<String>> watchPinned(String chatId) {
     return _client
-        .from('chats')
-        .stream(primaryKey: ['id'])
-        .eq('id', chatId)
-        .map((rows) => rows.firstOrNull?['pinned_message_id']?.toString());
+        .from('chat_pins')
+        .stream(primaryKey: ['chat_id', 'message_id'])
+        .eq('chat_id', chatId)
+        .order('pinned_at', ascending: false)
+        .map((rows) => [for (final r in rows) '${r['message_id']}']);
   }
 
   @override
@@ -251,8 +252,11 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Future<void> unpin(String chatId) async {
-    await _client.rpc<void>('unpin_chat', params: {'chat': chatId});
+  Future<void> unpinMessage(String chatId, String messageId) async {
+    await _client.rpc<void>(
+      'unpin_message',
+      params: {'chat': chatId, 'message': int.parse(messageId)},
+    );
   }
 
   @override

@@ -415,29 +415,42 @@ void main() {
     expect(find.text('Глянь что на стенку кинул'), findsNothing);
   });
 
-  testWidgets('закреп: long-press → плашка → открепить', (tester) async {
+  testWidgets('закрепы: несколько пинов, меню и «Открепить все»', (
+    tester,
+  ) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     await tester.tap(find.text('Viktor Dudovich'));
     await tester.pumpAndSettle();
 
-    // Долгое нажатие на сообщение → «Закрепить».
+    // Закрепляем два сообщения.
     await tester.longPress(find.text('Whatsup brother'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Закрепить'));
     await tester.pumpAndSettle();
-
-    // Плашка пина с превью + системная отметка в ленте.
-    expect(find.byIcon(Icons.push_pin), findsOneWidget);
-    // Системная отметка добавляется в конец — долистываем.
-    await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+    await tester.longPress(find.textContaining('casino'));
     await tester.pumpAndSettle();
-    expect(find.text('Вы закрепили сообщение'), findsOneWidget);
-    expect(find.text('Whatsup brother'), findsWidgets); // пузырь и/или плашка
+    await tester.tap(find.text('Закрепить'));
+    await tester.pumpAndSettle();
 
-    // Крестик на плашке снимает закреп.
-    await tester.tap(find.byIcon(Icons.close));
+    // Плашка показывает счётчик «+1».
+    expect(find.text('+1'), findsOneWidget);
+
+    // Long-press закреплённого предлагает «Открепить».
+    await tester.longPress(find.text('Whatsup brother').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Открепить'), findsOneWidget);
+    await tester.tap(find.text('Открепить'));
+    await tester.pumpAndSettle();
+    expect(find.text('+1'), findsNothing);
+    expect(find.byIcon(Icons.push_pin), findsOneWidget); // плашка осталась
+
+    // Меню закреплённых: список и «Открепить все».
+    await tester.tap(find.byIcon(Icons.format_list_bulleted));
+    await tester.pumpAndSettle();
+    expect(find.text('Закреплённые сообщения'), findsOneWidget);
+    await tester.tap(find.text('Открепить все'));
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.push_pin), findsNothing);
   });
