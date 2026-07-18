@@ -199,9 +199,10 @@ $$;
 
 -- ── Чаты 1:1 ───────────────────────────────────────────────────────────────
 create table if not exists public.chats (
-  id         uuid primary key default gen_random_uuid(),
-  kind       text not null default 'dm' check (kind in ('dm','group')),
-  created_at timestamptz not null default now()
+  id                uuid primary key default gen_random_uuid(),
+  kind              text not null default 'dm' check (kind in ('dm','group')),
+  pinned_message_id bigint, -- FK добавляется после создания messages
+  created_at        timestamptz not null default now()
 );
 
 create table if not exists public.chat_members (
@@ -229,6 +230,37 @@ create table if not exists public.messages (
          or length(body) between 1 and 4000)
 );
 create index if not exists messages_chat_idx on public.messages (chat_id, id);
+
+alter table public.chats
+  add constraint chats_pinned_message_fk
+  foreign key (pinned_message_id) references public.messages (id)
+  on delete set null;
+
+-- Закрепить сообщение (+ системная отметка в ленте).
+create or replace function public.pin_message(chat uuid, message bigint)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not is_chat_member(chat, auth.uid()) then
+    raise exception 'not a member';
+  end if;
+  if not exists (select 1 from messages
+                  where id = message and chat_id = chat and kind = 'user') then
+    raise exception 'no such message';
+  end if;
+  update chats set pinned_message_id = message where id = chat;
+  insert into messages (chat_id, author_id, body, kind)
+  values (chat, auth.uid(), '', 'pin');
+end $$;
+
+-- Открепить (без системной отметки, как в Telegram).
+create or replace function public.unpin_chat(chat uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not is_chat_member(chat, auth.uid()) then
+    raise exception 'not a member';
+  end if;
+  update chats set pinned_message_id = null where id = chat;
+end $$;
 
 -- Без security definer-функции политика chat_members ссылалась бы сама на себя.
 create or replace function public.is_chat_member(chat uuid, member uuid)
@@ -491,4 +523,4 @@ create policy chat_media_insert on storage.objects
 -- ── Realtime ───────────────────────────────────────────────────────────────
 alter publication supabase_realtime
   add table public.messages, public.posts, public.comments, public.reactions,
-            public.blacklist;
+            public.blacklist, public.chats;

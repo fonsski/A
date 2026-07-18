@@ -162,6 +162,28 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
+  Stream<String?> watchPinned(String chatId) {
+    return _client
+        .from('chats')
+        .stream(primaryKey: ['id'])
+        .eq('id', chatId)
+        .map((rows) => rows.firstOrNull?['pinned_message_id']?.toString());
+  }
+
+  @override
+  Future<void> pinMessage(String chatId, String messageId) async {
+    await _client.rpc<void>(
+      'pin_message',
+      params: {'chat': chatId, 'message': int.parse(messageId)},
+    );
+  }
+
+  @override
+  Future<void> unpin(String chatId) async {
+    await _client.rpc<void>('unpin_chat', params: {'chat': chatId});
+  }
+
+  @override
   Future<void> clearChat(String chatId) async {
     await _client.rpc<void>('clear_chat', params: {'chat': chatId});
     await _refreshChats();

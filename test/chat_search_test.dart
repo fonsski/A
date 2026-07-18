@@ -104,6 +104,23 @@ void main() {
       expect(c1.unread, 0);
     });
 
+    test('pinMessage/unpin: плашка и системная отметка', () async {
+      await repo.pinMessage('c1', 'c1-2');
+      expect(await repo.watchPinned('c1').first, 'c1-2');
+      final messages = await repo.watchMessages('c1').first;
+      expect(messages.last.kind, MessageKind.pin);
+      expect(messages.last.systemText, 'Вы закрепили сообщение');
+
+      await repo.unpin('c1');
+      expect(await repo.watchPinned('c1').first, isNull);
+    });
+
+    test('clearChat сбрасывает закреп', () async {
+      await repo.pinMessage('c1', 'c1-2');
+      await repo.clearChat('c1');
+      expect(await repo.watchPinned('c1').first, isNull);
+    });
+
     test('deleteChat убирает чат из списка', () async {
       await repo.deleteChat('c3');
       final chats = await repo.watchChats().first;
