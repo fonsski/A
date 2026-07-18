@@ -93,6 +93,23 @@ void main() {
       expect(chats.firstWhere((c) => c.id == 'c3').lastText, 'Me: 📷 мой кот');
     });
 
+    test('clearChat оставляет только системную отметку', () async {
+      await repo.clearChat('c1');
+      final messages = await repo.watchMessages('c1').first;
+      expect(messages.single.kind, MessageKind.clear);
+      expect(messages.single.systemText, 'Вы очистили чат');
+      final chats = await repo.watchChats().first;
+      final c1 = chats.firstWhere((c) => c.id == 'c1');
+      expect(c1.lastText, 'Вы очистили чат');
+      expect(c1.unread, 0);
+    });
+
+    test('deleteChat убирает чат из списка', () async {
+      await repo.deleteChat('c3');
+      final chats = await repo.watchChats().first;
+      expect(chats.any((c) => c.id == 'c3'), isFalse);
+    });
+
     test('startDm повторно возвращает существующий чат', () async {
       final trofim = (await repo.searchUsers('trofim')).single;
       // Чат с Trofim More уже есть в демо-данных (c3).

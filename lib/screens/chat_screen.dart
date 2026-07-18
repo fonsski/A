@@ -29,6 +29,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   final _inputFocus = FocusNode();
+  final _searchController = TextEditingController();
+  var _searchMode = false;
+  var _searchQuery = '';
 
   @override
   void initState() {
@@ -42,6 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     _scroll.dispose();
     _inputFocus.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -223,6 +227,151 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// Меню чата из макета: Поиск / Звонок / Очистить чат / Удалить чат.
+  Widget _buildMenu(AColors colors) {
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.more_vert, color: colors.accent, size: 20),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (context) => [
+        for (final (value, label) in [
+          ('search', 'Поиск'),
+          ('call', 'Звонок'),
+          ('clear', 'Очистить чат'),
+          ('delete', 'Удалить чат'),
+        ])
+          PopupMenuItem(
+            value: value,
+            child: Text(
+              label,
+              style: TextStyle(color: colors.textPrimary, fontSize: 14),
+            ),
+          ),
+      ],
+      onSelected: (value) => switch (value) {
+        'search' => setState(() => _searchMode = true),
+        'call' => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChatInfoScreen(
+              chatId: widget.chatId,
+              peer: widget.peer,
+              startCalling: true,
+            ),
+          ),
+        ),
+        'clear' => _confirmDestructive(
+          title: 'Очистить чат?',
+          body: 'Переписка удалится у обеих сторон.',
+          action: 'Очистить',
+          onConfirm: () => chatRepository.clearChat(widget.chatId),
+        ),
+        'delete' => _confirmDestructive(
+          title: 'Удалить чат?',
+          body: 'Чат и переписка удалятся у обеих сторон.',
+          action: 'Удалить',
+          onConfirm: () async {
+            await chatRepository.deleteChat(widget.chatId);
+            if (mounted) Navigator.of(context).pop();
+          },
+        ),
+        _ => null,
+      },
+    );
+  }
+
+  Widget _buildSearchBar(AColors colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(13, 8, 13, 0),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.only(left: 20, right: 4),
+        decoration: pillDecoration(colors.surface, radius: 24),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (v) => setState(() => _searchQuery = v),
+                style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                  hintText: 'Поиск по сообщениям...',
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Закрыть поиск',
+              icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
+              onPressed: () => setState(() {
+                _searchMode = false;
+                _searchQuery = '';
+                _searchController.clear();
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDestructive({
+    required String title,
+    required String body,
+    required String action,
+    required Future<void> Function() onConfirm,
+  }) async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: Text(
+          title,
+          style: TextStyle(color: colors.textPrimary, fontSize: 18),
+        ),
+        content: Text(
+          body,
+          style: TextStyle(color: colors.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: colors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: Text(
+              action,
+              style: TextStyle(
+                color: colors.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await onConfirm();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Не получилось: $e')));
+      }
+    }
+  }
+
   var _didInitialScroll = false;
 
   /// Прыгаем в конец при открытии и при новых сообщениях, но только если
@@ -295,11 +444,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ],
                               ),
                             ),
-                            Icon(
-                              Icons.more_vert,
-                              color: colors.accent,
-                              size: 20,
-                            ),
+                            _buildMenu(colors),
                             const SizedBox(width: 8),
                           ],
                         ),
@@ -309,17 +454,38 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+            if (_searchMode) _buildSearchBar(colors),
             Expanded(
               child: StreamBuilder<List<Message>>(
                 stream: chatRepository.watchMessages(widget.chatId),
                 builder: (context, snapshot) {
-                  final messages = snapshot.data ?? const <Message>[];
+                  var messages = snapshot.data ?? const <Message>[];
+                  final query = _searchQuery.trim().toLowerCase();
+                  if (_searchMode && query.isNotEmpty) {
+                    messages = messages
+                        .where((m) => m.text.toLowerCase().contains(query))
+                        .toList();
+                  }
                   _scrollDown();
+                  if (_searchMode && messages.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Ничего не нашлось',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 16,
+                        ),
+                      ),
+                    );
+                  }
                   return ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(13, 16, 13, 16),
                     itemCount: messages.length,
-                    itemBuilder: (context, i) => _Bubble(message: messages[i]),
+                    itemBuilder: (context, i) =>
+                        messages[i].kind == MessageKind.user
+                        ? _Bubble(message: messages[i])
+                        : _SystemNote(message: messages[i]),
                   );
                 },
               ),
@@ -386,6 +552,30 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Системная отметка в ленте («Вы очистили чат» и т.п.) — серым по центру.
+class _SystemNote extends StatelessWidget {
+  const _SystemNote({required this.message});
+
+  final Message message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Text(
+          message.systemText,
+          style: TextStyle(
+            color: context.colors.textSecondary,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

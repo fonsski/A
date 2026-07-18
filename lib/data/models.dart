@@ -62,6 +62,9 @@ String attachmentPreview(AttachmentKind kind, [String caption = '']) {
   return '${attachmentEmoji(kind)} ${caption.isEmpty ? label : caption}';
 }
 
+/// Тип сообщения: обычное или системное событие в ленте чата.
+enum MessageKind { user, clear, pin }
+
 class Message {
   const Message({
     required this.id,
@@ -69,6 +72,7 @@ class Message {
     required this.text,
     required this.sentAt,
     required this.mine,
+    this.kind = MessageKind.user,
     this.attachmentUrl,
     this.attachmentKind,
     this.attachmentName,
@@ -79,9 +83,18 @@ class Message {
   final String text;
   final DateTime sentAt;
   final bool mine;
+  final MessageKind kind;
   final String? attachmentUrl;
   final AttachmentKind? attachmentKind;
   final String? attachmentName;
+
+  /// Текст системного сообщения («Вы очистили чат» и т.п.).
+  String get systemText => switch (kind) {
+    MessageKind.clear => mine ? 'Вы очистили чат' : 'Собеседник очистил чат',
+    MessageKind.pin =>
+      mine ? 'Вы закрепили сообщение' : 'Собеседник закрепил сообщение',
+    MessageKind.user => text,
+  };
 }
 
 final _linkRe = RegExp(r'https?://[^\s<>"]+');

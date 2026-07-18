@@ -220,8 +220,13 @@ create table if not exists public.messages (
   image_url       text,   -- URL вложения (имя историческое)
   attachment_type text check (attachment_type in ('image', 'video', 'file')),
   attachment_name text,
+  -- 'user' — обычное, 'clear'/'pin' — системные события.
+  kind            text not null default 'user'
+                  check (kind in ('user', 'clear', 'pin')),
   created_at      timestamptz not null default now(),
-  check (image_url is not null or length(body) between 1 and 4000)
+  check (kind <> 'user'
+         or image_url is not null
+         or length(body) between 1 and 4000)
 );
 create index if not exists messages_chat_idx on public.messages (chat_id, id);
 
@@ -278,6 +283,28 @@ begin
   return c;
 end $$;
 
+-- Очистить переписку у обеих сторон + системная отметка.
+create or replace function public.clear_chat(chat uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not is_chat_member(chat, auth.uid()) then
+    raise exception 'not a member';
+  end if;
+  delete from messages where chat_id = chat;
+  insert into messages (chat_id, author_id, body, kind)
+  values (chat, auth.uid(), '', 'clear');
+end $$;
+
+-- Удалить чат целиком (участники и сообщения уходят каскадом).
+create or replace function public.delete_chat(chat uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not is_chat_member(chat, auth.uid()) then
+    raise exception 'not a member';
+  end if;
+  delete from chats where id = chat;
+end $$;
+
 create or replace function public.mark_read(chat uuid)
 returns void language sql security definer set search_path = public as $$
   update chat_members
@@ -302,13 +329,14 @@ select
       and m2.author_id <> cm.user_id) as unread,
   p.avatar_url as peer_avatar,
   other.user_id as peer_id,
-  lm.attachment_type as last_attachment
+  lm.attachment_type as last_attachment,
+  lm.kind as last_kind
 from public.chats c
 join public.chat_members cm on cm.chat_id = c.id
 left join public.chat_members other
        on other.chat_id = c.id and other.user_id <> cm.user_id
 left join public.profiles p on p.id = other.user_id
-left join lateral (select body, created_at, attachment_type
+left join lateral (select body, created_at, attachment_type, kind
                      from public.messages m
                     where m.chat_id = c.id
                     order by m.id desc limit 1) lm on true;

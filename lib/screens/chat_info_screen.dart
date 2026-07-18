@@ -17,17 +17,25 @@ enum _MediaTab { photo, video, files, links }
 /// с аватаром посередине сворачивает её обратно.
 /// Тап по имени открывает полный профиль собеседника.
 class ChatInfoScreen extends StatefulWidget {
-  const ChatInfoScreen({super.key, required this.peer, this.chatId});
+  const ChatInfoScreen({
+    super.key,
+    required this.peer,
+    this.chatId,
+    this.startCalling = false,
+  });
 
   final UserSummary peer;
   final String? chatId;
+
+  /// Открыть сразу с развёрнутой плашкой звонка (пункт меню «Звонок»).
+  final bool startCalling;
 
   @override
   State<ChatInfoScreen> createState() => _ChatInfoScreenState();
 }
 
 class _ChatInfoScreenState extends State<ChatInfoScreen> {
-  bool _calling = false;
+  late bool _calling = widget.startCalling;
   _MediaTab _tab = _MediaTab.photo;
 
   @override

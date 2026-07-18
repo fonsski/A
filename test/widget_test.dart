@@ -376,6 +376,50 @@ void main() {
     await pinLock.clear();
   });
 
+  testWidgets('меню чата: поиск, очистка и удаление', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+
+    // Поиск по сообщениям.
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Поиск'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Поиск по сообщениям...'),
+      'casino',
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('casino'), findsWidgets);
+    expect(find.text('Whatsup brother'), findsNothing);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('Whatsup brother'), findsOneWidget);
+
+    // Очистка: остаётся только системная отметка.
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Очистить чат'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Очистить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Вы очистили чат'), findsOneWidget);
+    expect(find.text('Whatsup brother'), findsNothing);
+
+    // Удаление: возврат к списку, чата больше нет.
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить чат'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeShell), findsOneWidget);
+    expect(find.text('Viktor Dudovich'), findsNothing);
+  });
+
   testWidgets('приватность: выбор сохраняется в репозиторий', (tester) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
