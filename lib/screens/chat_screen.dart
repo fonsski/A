@@ -33,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   var _searchMode = false;
   var _searchQuery = '';
   var _lastMessages = const <Message>[];
+  Message? _replyTo;
 
   @override
   void initState() {
@@ -53,8 +54,9 @@ class _ChatScreenState extends State<ChatScreen> {
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    chatRepository.sendMessage(widget.chatId, text);
+    chatRepository.sendMessage(widget.chatId, text, replyToId: _replyTo?.id);
     _controller.clear();
+    setState(() => _replyTo = null);
     // Не теряем фокус — чаттинг без лишних тапов.
     _inputFocus.requestFocus();
   }
@@ -347,6 +349,18 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Меню по долгому нажатию на сообщение.
   Future<void> _showMessageSheet(Message message) async {
     final colors = context.colors;
+
+    Widget item(IconData icon, String label, VoidCallback onTap) => Builder(
+      builder: (sheet) => ListTile(
+        leading: Icon(icon, color: colors.accent),
+        title: Text(label, style: TextStyle(color: colors.textPrimary)),
+        onTap: () {
+          Navigator.of(sheet).pop();
+          onTap();
+        },
+      ),
+    );
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: colors.surface,
@@ -357,16 +371,68 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: Icon(Icons.push_pin, color: colors.accent),
-              title: Text(
-                'Закрепить',
-                style: TextStyle(color: colors.textPrimary),
+            item(Icons.reply, 'Ответить', () {
+              setState(() => _replyTo = message);
+              _inputFocus.requestFocus();
+            }),
+            item(Icons.push_pin, 'Закрепить', () {
+              chatRepository.pinMessage(widget.chatId, message.id);
+            }),
+            item(Icons.visibility_off_outlined, 'Удалить у себя', () {
+              chatRepository.hideMessageForMe(widget.chatId, message.id);
+            }),
+            if (message.mine)
+              item(Icons.delete_outline, 'Удалить у всех', () {
+                _confirmDestructive(
+                  title: 'Удалить у всех?',
+                  body: 'Сообщение исчезнет у обеих сторон.',
+                  action: 'Удалить',
+                  onConfirm: () => chatRepository.deleteMessageForAll(
+                    widget.chatId,
+                    message.id,
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Плашка «Ответ на …» над полем ввода.
+  Widget _buildReplyBar(AColors colors) {
+    final reply = _replyTo;
+    if (reply == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(13, 0, 13, 4),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.only(left: 12, right: 4),
+        decoration: pillDecoration(colors.surface, radius: 18),
+        child: Row(
+          children: [
+            Icon(Icons.reply, color: colors.accent, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              reply.mine ? 'Вы' : widget.peer.displayName,
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
-              onTap: () {
-                Navigator.of(sheet).pop();
-                chatRepository.pinMessage(widget.chatId, message.id);
-              },
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                reply.preview,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.textPrimary, fontSize: 12),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Отменить ответ',
+              icon: Icon(Icons.close, color: colors.textSecondary, size: 16),
+              onPressed: () => setState(() => _replyTo = null),
             ),
           ],
         ),
@@ -599,13 +665,24 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
                       return GestureDetector(
                         onLongPress: () => _showMessageSheet(message),
-                        child: _Bubble(message: message),
+                        child: _Bubble(
+                          message: message,
+                          replySource: message.replyToId == null
+                              ? null
+                              : _lastMessages
+                                    .where((m) => m.id == message.replyToId)
+                                    .firstOrNull,
+                          onReplyTap: message.replyToId == null
+                              ? null
+                              : () => _scrollToMessage(message.replyToId!),
+                        ),
                       );
                     },
                   );
                 },
               ),
             ),
+            _buildReplyBar(colors),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 0, 13, 12),
               child: Row(
@@ -887,9 +964,49 @@ class _VideoBubbleState extends State<_VideoBubble> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
+  const _Bubble({required this.message, this.replySource, this.onReplyTap});
 
   final Message message;
+
+  /// Исходное сообщение, если это ответ (null — удалено или не найдено).
+  final Message? replySource;
+  final VoidCallback? onReplyTap;
+
+  /// Цитата исходника над текстом ответа: полоска, автор, превью.
+  Widget _replyBlock(BuildContext context, AColors colors) {
+    return GestureDetector(
+      onTap: onReplyTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.only(left: 8),
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: colors.accent, width: 2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              replySource == null
+                  ? 'Сообщение удалено'
+                  : (replySource!.mine ? 'Вы' : 'Собеседник'),
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (replySource != null)
+              Text(
+                replySource!.preview,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.textSecondary, fontSize: 11),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -911,6 +1028,7 @@ class _Bubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            if (message.replyToId != null) _replyBlock(context, colors),
             if (message.attachmentUrl != null) _Attachment(message: message),
             if (message.text.isNotEmpty)
               Text(

@@ -11,7 +11,13 @@ abstract class ChatRepository {
   /// Сообщения чата от старых к новым.
   Stream<List<Message>> watchMessages(String chatId);
 
-  Future<void> sendMessage(String chatId, String text);
+  Future<void> sendMessage(String chatId, String text, {String? replyToId});
+
+  /// «Удалить у всех» — только для своих сообщений.
+  Future<void> deleteMessageForAll(String chatId, String messageId);
+
+  /// «Удалить у себя» — скрывает сообщение только для меня.
+  Future<void> hideMessageForMe(String chatId, String messageId);
 
   /// Отправляет вложение (Storage, бакет chat-media): фото, видео или файл,
   /// опционально с подписью.

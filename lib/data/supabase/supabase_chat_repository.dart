@@ -6,15 +6,29 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../chat_repository.dart';
 import '../models.dart';
 
+class _MessagesState {
+  final controller = StreamController<List<Message>>.broadcast();
+  var rows = const <Map<String, dynamic>>[];
+  final hidden = <String>{};
+  var ready = false;
+  StreamSubscription<List<Map<String, dynamic>>>? sub;
+}
+
 /// Чаты поверх Supabase: view `chat_overview` + realtime на `messages`.
 /// Требует applied supabase/schema.sql.
 class SupabaseChatRepository implements ChatRepository {
   SupabaseChatRepository() : _client = Supabase.instance.client {
-    // Любое новое сообщение в моих чатах (RLS фильтрует) обновляет список.
+    // Новые и удалённые сообщения в моих чатах обновляют список.
     _client
         .channel('chats-overview')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          callback: (_) => _refreshChats(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
           schema: 'public',
           table: 'messages',
           callback: (_) => _refreshChats(),
@@ -81,47 +95,105 @@ class SupabaseChatRepository implements ChatRepository {
     yield* _chatsController.stream;
   }
 
-  @override
-  Stream<List<Message>> watchMessages(String chatId) {
-    return _client
+  /// Состояние ленты чата: строки из realtime + мои скрытые сообщения.
+  final _messageStates = <String, _MessagesState>{};
+
+  _MessagesState _messagesStateFor(String chatId) {
+    return _messageStates.putIfAbsent(chatId, () {
+      final state = _MessagesState();
+      unawaited(_initMessages(chatId, state));
+      return state;
+    });
+  }
+
+  Future<void> _initMessages(String chatId, _MessagesState state) async {
+    try {
+      final hiddenRows = await _client
+          .from('message_hidden')
+          .select('message_id')
+          .eq('user_id', _uid);
+      state.hidden.addAll([for (final r in hiddenRows) '${r['message_id']}']);
+    } catch (_) {
+      // Таблица могла быть не создана — работаем без «удалено у себя».
+    }
+    state.sub = _client
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('chat_id', chatId)
         .order('id', ascending: true)
-        .map(
-          (rows) => [
-            for (final r in rows)
-              Message(
-                id: '${r['id']}',
-                chatId: chatId,
-                text: r['body'] as String,
-                sentAt: DateTime.parse(r['created_at'] as String),
-                mine: r['author_id'] == _uid,
-                kind: switch (r['kind'] as String?) {
-                  'clear' => MessageKind.clear,
-                  'pin' => MessageKind.pin,
-                  _ => MessageKind.user,
-                },
-                attachmentUrl: r['image_url'] as String?,
-                attachmentKind: switch (r['attachment_type'] as String?) {
-                  'video' => AttachmentKind.video,
-                  'file' => AttachmentKind.file,
-                  'image' => AttachmentKind.image,
-                  _ => r['image_url'] != null ? AttachmentKind.image : null,
-                },
-                attachmentName: r['attachment_name'] as String?,
-              ),
-          ],
-        );
+        .listen((rows) {
+          state
+            ..rows = rows
+            ..ready = true;
+          state.controller.add(_visibleMessages(chatId, state));
+        });
+  }
+
+  List<Message> _visibleMessages(String chatId, _MessagesState state) => [
+    for (final r in state.rows)
+      if (!state.hidden.contains('${r['id']}'))
+        Message(
+          id: '${r['id']}',
+          chatId: chatId,
+          text: r['body'] as String,
+          sentAt: DateTime.parse(r['created_at'] as String),
+          mine: r['author_id'] == _uid,
+          kind: switch (r['kind'] as String?) {
+            'clear' => MessageKind.clear,
+            'pin' => MessageKind.pin,
+            _ => MessageKind.user,
+          },
+          replyToId: r['reply_to']?.toString(),
+          attachmentUrl: r['image_url'] as String?,
+          attachmentKind: switch (r['attachment_type'] as String?) {
+            'video' => AttachmentKind.video,
+            'file' => AttachmentKind.file,
+            'image' => AttachmentKind.image,
+            _ => r['image_url'] != null ? AttachmentKind.image : null,
+          },
+          attachmentName: r['attachment_name'] as String?,
+        ),
+  ];
+
+  @override
+  Stream<List<Message>> watchMessages(String chatId) async* {
+    final state = _messagesStateFor(chatId);
+    if (state.ready) yield _visibleMessages(chatId, state);
+    yield* state.controller.stream;
   }
 
   @override
-  Future<void> sendMessage(String chatId, String text) async {
+  Future<void> sendMessage(
+    String chatId,
+    String text, {
+    String? replyToId,
+  }) async {
     await _client.from('messages').insert({
       'chat_id': chatId,
       'author_id': _uid,
       'body': text,
+      if (replyToId != null) 'reply_to': int.parse(replyToId),
     });
+  }
+
+  @override
+  Future<void> deleteMessageForAll(String chatId, String messageId) async {
+    // RLS позволяет удалять только свои; realtime обновит ленту сам.
+    await _client.from('messages').delete().eq('id', int.parse(messageId));
+    await _refreshChats();
+  }
+
+  @override
+  Future<void> hideMessageForMe(String chatId, String messageId) async {
+    await _client.from('message_hidden').upsert({
+      'user_id': _uid,
+      'message_id': int.parse(messageId),
+    });
+    final state = _messageStates[chatId];
+    if (state != null) {
+      state.hidden.add(messageId);
+      state.controller.add(_visibleMessages(chatId, state));
+    }
   }
 
   @override
