@@ -224,6 +224,7 @@ create table if not exists public.messages (
   -- 'user' — обычное, 'clear'/'pin' — системные события.
   kind            text not null default 'user'
                   check (kind in ('user', 'clear', 'pin')),
+  reply_to        bigint references public.messages (id) on delete set null,
   created_at      timestamptz not null default now(),
   check (kind <> 'user'
          or image_url is not null
@@ -262,6 +263,18 @@ begin
   update chats set pinned_message_id = null where id = chat;
 end $$;
 
+-- «Удалить у себя»: персональное скрытие сообщений.
+create table if not exists public.message_hidden (
+  user_id    uuid   not null references public.profiles (id) on delete cascade,
+  message_id bigint not null references public.messages (id) on delete cascade,
+  primary key (user_id, message_id)
+);
+
+alter table public.message_hidden enable row level security;
+create policy message_hidden_own on public.message_hidden
+  for all using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 -- Без security definer-функции политика chat_members ссылалась бы сама на себя.
 create or replace function public.is_chat_member(chat uuid, member uuid)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -281,6 +294,8 @@ create policy chat_members_update_own on public.chat_members
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy messages_read on public.messages
   for select using (is_chat_member(chat_id, auth.uid()));
+create policy messages_delete_own on public.messages
+  for delete using (author_id = auth.uid());
 create policy messages_send on public.messages
   for insert with check (
     author_id = auth.uid()

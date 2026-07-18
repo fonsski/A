@@ -377,6 +377,44 @@ void main() {
     await pinLock.clear();
   });
 
+  testWidgets('ответы и удаление сообщений', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Vozdux').first);
+    await tester.pumpAndSettle();
+
+    // Ответ: long-press → «Ответить» → плашка → отправка.
+    await tester.longPress(find.text('Глянь что на стенку кинул'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ответить'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.reply), findsWidgets); // плашка ответа
+
+    await tester.enterText(find.byType(TextField).last, 'ответ!');
+    await tester.tap(find.text('А?'));
+    await tester.pump(const Duration(seconds: 2)); // демо-ответ собеседника
+    await tester.pumpAndSettle();
+    // Пузырь ответа содержит цитату исходника.
+    expect(find.text('Глянь что на стенку кинул'), findsNWidgets(2));
+
+    // «Удалить у всех» — своё сообщение исчезает.
+    await tester.longPress(find.text('ответ!'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить у всех'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить'));
+    await tester.pumpAndSettle();
+    expect(find.text('ответ!'), findsNothing);
+
+    // «Удалить у себя» — чужое сообщение скрывается локально.
+    await tester.longPress(find.text('Глянь что на стенку кинул'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить у себя'));
+    await tester.pumpAndSettle();
+    expect(find.text('Глянь что на стенку кинул'), findsNothing);
+  });
+
   testWidgets('закреп: long-press → плашка → открепить', (tester) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));

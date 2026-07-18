@@ -73,6 +73,7 @@ class Message {
     required this.sentAt,
     required this.mine,
     this.kind = MessageKind.user,
+    this.replyToId,
     this.attachmentUrl,
     this.attachmentKind,
     this.attachmentName,
@@ -84,9 +85,16 @@ class Message {
   final DateTime sentAt;
   final bool mine;
   final MessageKind kind;
+
+  /// id сообщения, на которое это — ответ.
+  final String? replyToId;
   final String? attachmentUrl;
   final AttachmentKind? attachmentKind;
   final String? attachmentName;
+
+  /// Короткое превью для плашек ответа/закрепа.
+  String get preview =>
+      attachmentKind != null ? attachmentPreview(attachmentKind!, text) : text;
 
   /// Текст системного сообщения («Вы очистили чат» и т.п.).
   String get systemText => switch (kind) {

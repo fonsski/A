@@ -21,6 +21,12 @@ class _MockChat {
   final List<Message> messages;
   int unread;
   String? pinnedId;
+  final hidden = <String>{}; // «удалено у себя»
+
+  List<Message> get visibleMessages => [
+    for (final m in messages)
+      if (!hidden.contains(m.id)) m,
+  ];
 
   ChatSummary get summary => ChatSummary(
     id: id,
@@ -30,7 +36,7 @@ class _MockChat {
         .map((u) => u.username)
         .firstOrNull,
     peerName: peerName,
-    lastText: switch (messages.lastOrNull) {
+    lastText: switch (visibleMessages.lastOrNull) {
       null => '',
       final m when m.kind != MessageKind.user => m.systemText,
       final m =>
@@ -39,7 +45,7 @@ class _MockChat {
                 ? attachmentPreview(m.attachmentKind!, m.text)
                 : m.text),
     },
-    lastAt: messages.isEmpty ? null : messages.last.sentAt,
+    lastAt: visibleMessages.lastOrNull?.sentAt,
     unread: unread,
   );
 }
@@ -152,7 +158,7 @@ class MockChatRepository implements ChatRepository {
       );
 
   void _notify(String chatId) {
-    _controllerFor(chatId).add(List.unmodifiable(_chat(chatId).messages));
+    _controllerFor(chatId).add(_chat(chatId).visibleMessages);
     _chatsController.add(_summaries);
   }
 
@@ -164,12 +170,16 @@ class MockChatRepository implements ChatRepository {
 
   @override
   Stream<List<Message>> watchMessages(String chatId) async* {
-    yield List.unmodifiable(_chat(chatId).messages);
+    yield _chat(chatId).visibleMessages;
     yield* _controllerFor(chatId).stream;
   }
 
   @override
-  Future<void> sendMessage(String chatId, String text) async {
+  Future<void> sendMessage(
+    String chatId,
+    String text, {
+    String? replyToId,
+  }) async {
     final chat = _chat(chatId);
     chat.messages.add(
       Message(
@@ -178,6 +188,7 @@ class MockChatRepository implements ChatRepository {
         text: text,
         sentAt: DateTime.now(),
         mine: true,
+        replyToId: replyToId,
       ),
     );
     _notify(chatId);
@@ -225,6 +236,23 @@ class MockChatRepository implements ChatRepository {
   Future<void> markRead(String chatId) async {
     _chat(chatId).unread = 0;
     _chatsController.add(_summaries);
+  }
+
+  @override
+  Future<void> deleteMessageForAll(String chatId, String messageId) async {
+    final chat = _chat(chatId);
+    chat.messages.removeWhere((m) => m.id == messageId);
+    if (chat.pinnedId == messageId) {
+      chat.pinnedId = null;
+      _pinnedControllerFor(chatId).add(null);
+    }
+    _notify(chatId);
+  }
+
+  @override
+  Future<void> hideMessageForMe(String chatId, String messageId) async {
+    _chat(chatId).hidden.add(messageId);
+    _notify(chatId);
   }
 
   final _pinnedControllers = <String, StreamController<String?>>{};

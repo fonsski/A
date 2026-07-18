@@ -104,6 +104,29 @@ void main() {
       expect(c1.unread, 0);
     });
 
+    test('sendMessage с replyToId сохраняет ссылку на исходник', () async {
+      await repo.sendMessage('c3', 'отвечаю', replyToId: 'c3-1');
+      final messages = await repo.watchMessages('c3').first;
+      expect(messages.last.text, 'отвечаю');
+      expect(messages.last.replyToId, 'c3-1');
+    });
+
+    test('deleteMessageForAll убирает сообщение и снимает его пин', () async {
+      await repo.pinMessage('c1', 'c1-2');
+      await repo.deleteMessageForAll('c1', 'c1-2');
+      final messages = await repo.watchMessages('c1').first;
+      expect(messages.any((m) => m.id == 'c1-2'), isFalse);
+      expect(await repo.watchPinned('c1').first, isNull);
+    });
+
+    test('hideMessageForMe скрывает из выдачи и превью', () async {
+      await repo.hideMessageForMe('c3', 'c3-1');
+      final messages = await repo.watchMessages('c3').first;
+      expect(messages.any((m) => m.id == 'c3-1'), isFalse);
+      final chats = await repo.watchChats().first;
+      expect(chats.firstWhere((c) => c.id == 'c3').lastText, '');
+    });
+
     test('pinMessage/unpin: плашка и системная отметка', () async {
       await repo.pinMessage('c1', 'c1-2');
       expect(await repo.watchPinned('c1').first, 'c1-2');
