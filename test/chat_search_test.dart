@@ -155,6 +155,28 @@ void main() {
       expect(await repo.watchPinned('c1').first, isEmpty);
     });
 
+    test('toggleReaction: поставить, заменить, снять', () async {
+      // Поставить.
+      await repo.toggleReaction('c3', 'c3-1', '👍');
+      var reactions = await repo.watchReactions('c3').first;
+      var summary = reactions['c3-1']!.single;
+      expect(summary.emoji, '👍');
+      expect(summary.count, 1);
+      expect(summary.mine, isTrue);
+
+      // Другая эмодзи заменяет мою реакцию, как в ТГ.
+      await repo.toggleReaction('c3', 'c3-1', '❤️');
+      reactions = await repo.watchReactions('c3').first;
+      summary = reactions['c3-1']!.single;
+      expect(summary.emoji, '❤️');
+      expect(summary.count, 1);
+
+      // Повтор той же — снимает.
+      await repo.toggleReaction('c3', 'c3-1', '❤️');
+      reactions = await repo.watchReactions('c3').first;
+      expect(reactions.containsKey('c3-1'), isFalse);
+    });
+
     test('deleteChat убирает чат из списка', () async {
       await repo.deleteChat('c3');
       final chats = await repo.watchChats().first;

@@ -34,6 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
   var _searchQuery = '';
   var _lastMessages = const <Message>[];
   var _pinnedIds = const <String>[];
+  var _reactions = const <String, List<ReactionSummary>>{};
   Message? _replyTo;
 
   @override
@@ -487,6 +488,33 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Ряд реакций, как в ТГ.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (final emoji in kReactionEmojis)
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(sheet).pop();
+                        chatRepository.toggleReaction(
+                          widget.chatId,
+                          message.id,
+                          emoji,
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 26),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             item(Icons.reply, 'Ответить', () {
               setState(() => _replyTo = message);
               _inputFocus.requestFocus();
@@ -612,6 +640,62 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMessageList(AColors colors) {
+    return StreamBuilder<List<Message>>(
+      stream: chatRepository.watchMessages(widget.chatId),
+      builder: (context, snapshot) {
+        var messages = snapshot.data ?? const <Message>[];
+        _lastMessages = messages;
+        final query = _searchQuery.trim().toLowerCase();
+        if (_searchMode && query.isNotEmpty) {
+          messages = messages
+              .where((m) => m.text.toLowerCase().contains(query))
+              .toList();
+        }
+        _scrollDown();
+        if (_searchMode && messages.isEmpty) {
+          return Center(
+            child: Text(
+              'Ничего не нашлось',
+              style: TextStyle(color: colors.textSecondary, fontSize: 16),
+            ),
+          );
+        }
+        return ListView.builder(
+          controller: _scroll,
+          padding: const EdgeInsets.fromLTRB(13, 16, 13, 16),
+          itemCount: messages.length,
+          itemBuilder: (context, i) {
+            final message = messages[i];
+            if (message.kind != MessageKind.user) {
+              return _SystemNote(message: message);
+            }
+            return GestureDetector(
+              onLongPress: () => _showMessageSheet(message),
+              child: _Bubble(
+                message: message,
+                replySource: message.replyToId == null
+                    ? null
+                    : _lastMessages
+                          .where((m) => m.id == message.replyToId)
+                          .firstOrNull,
+                onReplyTap: message.replyToId == null
+                    ? null
+                    : () => _scrollToMessage(message.replyToId!),
+                reactions: _reactions[message.id] ?? const [],
+                onReactionTap: (emoji) => chatRepository.toggleReaction(
+                  widget.chatId,
+                  message.id,
+                  emoji,
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -752,54 +836,11 @@ class _ChatScreenState extends State<ChatScreen> {
             _buildPinnedBar(colors),
             if (_searchMode) _buildSearchBar(colors),
             Expanded(
-              child: StreamBuilder<List<Message>>(
-                stream: chatRepository.watchMessages(widget.chatId),
-                builder: (context, snapshot) {
-                  var messages = snapshot.data ?? const <Message>[];
-                  _lastMessages = messages;
-                  final query = _searchQuery.trim().toLowerCase();
-                  if (_searchMode && query.isNotEmpty) {
-                    messages = messages
-                        .where((m) => m.text.toLowerCase().contains(query))
-                        .toList();
-                  }
-                  _scrollDown();
-                  if (_searchMode && messages.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'Ничего не нашлось',
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 16,
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(13, 16, 13, 16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, i) {
-                      final message = messages[i];
-                      if (message.kind != MessageKind.user) {
-                        return _SystemNote(message: message);
-                      }
-                      return GestureDetector(
-                        onLongPress: () => _showMessageSheet(message),
-                        child: _Bubble(
-                          message: message,
-                          replySource: message.replyToId == null
-                              ? null
-                              : _lastMessages
-                                    .where((m) => m.id == message.replyToId)
-                                    .firstOrNull,
-                          onReplyTap: message.replyToId == null
-                              ? null
-                              : () => _scrollToMessage(message.replyToId!),
-                        ),
-                      );
-                    },
-                  );
+              child: StreamBuilder<Map<String, List<ReactionSummary>>>(
+                stream: chatRepository.watchReactions(widget.chatId),
+                builder: (context, reactionsSnapshot) {
+                  _reactions = reactionsSnapshot.data ?? _reactions;
+                  return _buildMessageList(colors);
                 },
               ),
             ),
@@ -1085,13 +1126,51 @@ class _VideoBubbleState extends State<_VideoBubble> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message, this.replySource, this.onReplyTap});
+  const _Bubble({
+    required this.message,
+    this.replySource,
+    this.onReplyTap,
+    this.reactions = const [],
+    this.onReactionTap,
+  });
 
   final Message message;
 
   /// Исходное сообщение, если это ответ (null — удалено или не найдено).
   final Message? replySource;
   final VoidCallback? onReplyTap;
+
+  /// Сводки реакций на этом сообщении.
+  final List<ReactionSummary> reactions;
+  final ValueChanged<String>? onReactionTap;
+
+  /// Чипы реакций под текстом: эмодзи + счётчик, моя — с акцентной рамкой.
+  Widget _reactionChips(AColors colors) {
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final r in reactions)
+          GestureDetector(
+            onTap: onReactionTap == null ? null : () => onReactionTap!(r.emoji),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.bg.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: r.mine ? colors.accent : Colors.transparent,
+                ),
+              ),
+              child: Text(
+                '${r.emoji} ${r.count}',
+                style: TextStyle(color: colors.textPrimary, fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   /// Цитата исходника над текстом ответа: полоска, автор, превью.
   Widget _replyBlock(BuildContext context, AColors colors) {
@@ -1161,6 +1240,10 @@ class _Bubble extends StatelessWidget {
                   height: 1.2,
                 ),
               ),
+            if (reactions.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _reactionChips(colors),
+            ],
             const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,
