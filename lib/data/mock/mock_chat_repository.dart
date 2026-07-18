@@ -29,15 +29,15 @@ class _MockChat {
         .map((u) => u.username)
         .firstOrNull,
     peerName: peerName,
-    lastText: messages.isEmpty
-        ? ''
-        : (messages.last.mine ? 'Me: ' : '') +
-              (messages.last.attachmentKind != null
-                  ? attachmentPreview(
-                      messages.last.attachmentKind!,
-                      messages.last.text,
-                    )
-                  : messages.last.text),
+    lastText: switch (messages.lastOrNull) {
+      null => '',
+      final m when m.kind != MessageKind.user => m.systemText,
+      final m =>
+        (m.mine ? 'Me: ' : '') +
+            (m.attachmentKind != null
+                ? attachmentPreview(m.attachmentKind!, m.text)
+                : m.text),
+    },
     lastAt: messages.isEmpty ? null : messages.last.sentAt,
     unread: unread,
   );
@@ -223,6 +223,32 @@ class MockChatRepository implements ChatRepository {
   @override
   Future<void> markRead(String chatId) async {
     _chat(chatId).unread = 0;
+    _chatsController.add(_summaries);
+  }
+
+  @override
+  Future<void> clearChat(String chatId) async {
+    final chat = _chat(chatId);
+    chat.messages
+      ..clear()
+      ..add(
+        Message(
+          id: 'm${_nextId++}',
+          chatId: chatId,
+          text: '',
+          sentAt: DateTime.now(),
+          mine: true,
+          kind: MessageKind.clear,
+        ),
+      );
+    chat.unread = 0;
+    _notify(chatId);
+  }
+
+  @override
+  Future<void> deleteChat(String chatId) async {
+    _chats.removeWhere((c) => c.id == chatId);
+    _messageControllers.remove(chatId)?.close();
     _chatsController.add(_summaries);
   }
 

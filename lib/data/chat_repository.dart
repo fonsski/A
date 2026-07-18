@@ -27,6 +27,12 @@ abstract class ChatRepository {
   /// Сбрасывает счётчик непрочитанных.
   Future<void> markRead(String chatId);
 
+  /// Очищает переписку у обеих сторон, оставляя системную отметку.
+  Future<void> clearChat(String chatId);
+
+  /// Удаляет чат целиком у обеих сторон.
+  Future<void> deleteChat(String chatId);
+
   /// Поиск людей по @нику или имени (без текущего пользователя).
   Future<List<UserSummary>> searchUsers(String query);
 

@@ -39,23 +39,28 @@ class SupabaseChatRepository implements ChatRepository {
         ChatSummary(
           id: r['chat_id'] as String,
           peerName: (r['peer_name'] ?? 'Чат') as String,
-          lastText: switch (r['last_attachment'] as String?) {
-            'image' => attachmentPreview(
-              AttachmentKind.image,
-              (r['last_body'] ?? '') as String,
-            ),
-            'video' => attachmentPreview(
-              AttachmentKind.video,
-              (r['last_body'] ?? '') as String,
-            ),
-            'file' => attachmentPreview(
-              AttachmentKind.file,
-              (r['last_body'] ?? '') as String,
-            ),
-            _ =>
-              r['last_at'] != null && ((r['last_body'] ?? '') as String).isEmpty
-                  ? '📎 Вложение'
-                  : (r['last_body'] ?? '') as String,
+          lastText: switch (r['last_kind'] as String?) {
+            'clear' => 'Чат очищен',
+            'pin' => 'Сообщение закреплено',
+            _ => switch (r['last_attachment'] as String?) {
+              'image' => attachmentPreview(
+                AttachmentKind.image,
+                (r['last_body'] ?? '') as String,
+              ),
+              'video' => attachmentPreview(
+                AttachmentKind.video,
+                (r['last_body'] ?? '') as String,
+              ),
+              'file' => attachmentPreview(
+                AttachmentKind.file,
+                (r['last_body'] ?? '') as String,
+              ),
+              _ =>
+                r['last_at'] != null &&
+                        ((r['last_body'] ?? '') as String).isEmpty
+                    ? '📎 Вложение'
+                    : (r['last_body'] ?? '') as String,
+            },
           },
           lastAt: r['last_at'] == null
               ? null
@@ -92,6 +97,11 @@ class SupabaseChatRepository implements ChatRepository {
                 text: r['body'] as String,
                 sentAt: DateTime.parse(r['created_at'] as String),
                 mine: r['author_id'] == _uid,
+                kind: switch (r['kind'] as String?) {
+                  'clear' => MessageKind.clear,
+                  'pin' => MessageKind.pin,
+                  _ => MessageKind.user,
+                },
                 attachmentUrl: r['image_url'] as String?,
                 attachmentKind: switch (r['attachment_type'] as String?) {
                   'video' => AttachmentKind.video,
@@ -148,6 +158,18 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<void> markRead(String chatId) async {
     await _client.rpc<void>('mark_read', params: {'chat': chatId});
+    await _refreshChats();
+  }
+
+  @override
+  Future<void> clearChat(String chatId) async {
+    await _client.rpc<void>('clear_chat', params: {'chat': chatId});
+    await _refreshChats();
+  }
+
+  @override
+  Future<void> deleteChat(String chatId) async {
+    await _client.rpc<void>('delete_chat', params: {'chat': chatId});
     await _refreshChats();
   }
 
