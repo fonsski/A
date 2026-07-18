@@ -260,6 +260,63 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
+  Stream<Map<String, List<ReactionSummary>>> watchReactions(String chatId) {
+    return _client
+        .from('message_reactions')
+        .stream(primaryKey: ['message_id', 'user_id'])
+        .eq('chat_id', chatId)
+        .map((rows) {
+          final byMessage = <String, Map<String, String>>{};
+          for (final r in rows) {
+            byMessage.putIfAbsent(
+              '${r['message_id']}',
+              () => {},
+            )['${r['user_id']}'] = r['emoji'] as String;
+          }
+          return {
+            for (final entry in byMessage.entries)
+              entry.key: [
+                for (final emoji in entry.value.values.toSet())
+                  ReactionSummary(
+                    emoji: emoji,
+                    count: entry.value.values.where((e) => e == emoji).length,
+                    mine: entry.value[_uid] == emoji,
+                  ),
+              ],
+          };
+        });
+  }
+
+  @override
+  Future<void> toggleReaction(
+    String chatId,
+    String messageId,
+    String emoji,
+  ) async {
+    final id = int.parse(messageId);
+    final existing = await _client
+        .from('message_reactions')
+        .select('emoji')
+        .eq('message_id', id)
+        .eq('user_id', _uid)
+        .maybeSingle();
+    if (existing?['emoji'] == emoji) {
+      await _client
+          .from('message_reactions')
+          .delete()
+          .eq('message_id', id)
+          .eq('user_id', _uid);
+    } else {
+      await _client.from('message_reactions').upsert({
+        'message_id': id,
+        'user_id': _uid,
+        'chat_id': chatId,
+        'emoji': emoji,
+      });
+    }
+  }
+
+  @override
   Future<void> clearChat(String chatId) async {
     await _client.rpc<void>('clear_chat', params: {'chat': chatId});
     await _refreshChats();

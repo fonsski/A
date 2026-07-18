@@ -105,6 +105,22 @@ class Message {
   };
 }
 
+/// Сводка одной реакции на сообщении: эмодзи, сколько поставило, моя ли.
+class ReactionSummary {
+  const ReactionSummary({
+    required this.emoji,
+    required this.count,
+    required this.mine,
+  });
+
+  final String emoji;
+  final int count;
+  final bool mine;
+}
+
+/// Стандартный набор реакций (кастомные — в планах).
+const kReactionEmojis = ['👍', '❤️', '😂', '🔥', '😮', '👎'];
+
 final _linkRe = RegExp(r'https?://[^\s<>"]+');
 
 /// Ссылки из текста сообщения (для вкладки «Ссылки» в инфо-чате).

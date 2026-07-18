@@ -455,6 +455,26 @@ void main() {
     expect(find.byIcon(Icons.push_pin), findsNothing);
   });
 
+  testWidgets('реакции: поставить из шторки и снять по чипу', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Trofim More'));
+    await tester.pumpAndSettle();
+
+    // Long-press → ряд эмодзи → 👍 ставит реакцию.
+    await tester.longPress(find.text('договорились'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('👍'));
+    await tester.pumpAndSettle();
+    expect(find.text('👍 1'), findsOneWidget);
+
+    // Тап по чипу той же эмодзи снимает реакцию.
+    await tester.tap(find.text('👍 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('👍 1'), findsNothing);
+  });
+
   testWidgets('меню чата: поиск, очистка и удаление', (tester) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));

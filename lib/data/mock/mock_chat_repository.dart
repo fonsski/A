@@ -22,6 +22,21 @@ class _MockChat {
   int unread;
   final pinnedIds = <String>[]; // новые закрепы первыми
   final hidden = <String>{}; // «удалено у себя»
+  // message id → (кто → эмодзи); «я» в моке — ключ 'me'.
+  final reactions = <String, Map<String, String>>{};
+
+  Map<String, List<ReactionSummary>> get reactionSummaries => {
+    for (final entry in reactions.entries)
+      if (entry.value.isNotEmpty)
+        entry.key: [
+          for (final emoji in entry.value.values.toSet())
+            ReactionSummary(
+              emoji: emoji,
+              count: entry.value.values.where((e) => e == emoji).length,
+              mine: entry.value['me'] == emoji,
+            ),
+        ],
+  };
 
   List<Message> get visibleMessages => [
     for (final m in messages)
@@ -294,6 +309,40 @@ class MockChatRepository implements ChatRepository {
     final chat = _chat(chatId);
     chat.pinnedIds.remove(messageId);
     _pinnedControllerFor(chatId).add(List.unmodifiable(chat.pinnedIds));
+  }
+
+  final _reactionControllers =
+      <String, StreamController<Map<String, List<ReactionSummary>>>>{};
+
+  StreamController<Map<String, List<ReactionSummary>>> _reactionControllerFor(
+    String chatId,
+  ) => _reactionControllers.putIfAbsent(
+    chatId,
+    () => StreamController<Map<String, List<ReactionSummary>>>.broadcast(),
+  );
+
+  @override
+  Stream<Map<String, List<ReactionSummary>>> watchReactions(
+    String chatId,
+  ) async* {
+    yield _chat(chatId).reactionSummaries;
+    yield* _reactionControllerFor(chatId).stream;
+  }
+
+  @override
+  Future<void> toggleReaction(
+    String chatId,
+    String messageId,
+    String emoji,
+  ) async {
+    final chat = _chat(chatId);
+    final byUser = chat.reactions.putIfAbsent(messageId, () => {});
+    if (byUser['me'] == emoji) {
+      byUser.remove('me'); // повтор той же — снимаем
+    } else {
+      byUser['me'] = emoji; // новая или замена
+    }
+    _reactionControllerFor(chatId).add(chat.reactionSummaries);
   }
 
   @override
