@@ -20,7 +20,7 @@ class _MockChat {
   final String peerName;
   final List<Message> messages;
   int unread;
-  String? pinnedId;
+  final pinnedIds = <String>[]; // новые закрепы первыми
   final hidden = <String>{}; // «удалено у себя»
 
   List<Message> get visibleMessages => [
@@ -242,9 +242,8 @@ class MockChatRepository implements ChatRepository {
   Future<void> deleteMessageForAll(String chatId, String messageId) async {
     final chat = _chat(chatId);
     chat.messages.removeWhere((m) => m.id == messageId);
-    if (chat.pinnedId == messageId) {
-      chat.pinnedId = null;
-      _pinnedControllerFor(chatId).add(null);
+    if (chat.pinnedIds.remove(messageId)) {
+      _pinnedControllerFor(chatId).add(List.unmodifiable(chat.pinnedIds));
     }
     _notify(chatId);
   }
@@ -255,24 +254,27 @@ class MockChatRepository implements ChatRepository {
     _notify(chatId);
   }
 
-  final _pinnedControllers = <String, StreamController<String?>>{};
+  final _pinnedControllers = <String, StreamController<List<String>>>{};
 
-  StreamController<String?> _pinnedControllerFor(String chatId) =>
+  StreamController<List<String>> _pinnedControllerFor(String chatId) =>
       _pinnedControllers.putIfAbsent(
         chatId,
-        () => StreamController<String?>.broadcast(),
+        () => StreamController<List<String>>.broadcast(),
       );
 
   @override
-  Stream<String?> watchPinned(String chatId) async* {
-    yield _chat(chatId).pinnedId;
+  Stream<List<String>> watchPinned(String chatId) async* {
+    yield List.unmodifiable(_chat(chatId).pinnedIds);
     yield* _pinnedControllerFor(chatId).stream;
   }
 
   @override
   Future<void> pinMessage(String chatId, String messageId) async {
     final chat = _chat(chatId);
-    chat.pinnedId = messageId;
+    // Повторный закреп поднимает пин наверх.
+    chat.pinnedIds
+      ..remove(messageId)
+      ..insert(0, messageId);
     chat.messages.add(
       Message(
         id: 'm${_nextId++}',
@@ -283,14 +285,15 @@ class MockChatRepository implements ChatRepository {
         kind: MessageKind.pin,
       ),
     );
-    _pinnedControllerFor(chatId).add(messageId);
+    _pinnedControllerFor(chatId).add(List.unmodifiable(chat.pinnedIds));
     _notify(chatId);
   }
 
   @override
-  Future<void> unpin(String chatId) async {
-    _chat(chatId).pinnedId = null;
-    _pinnedControllerFor(chatId).add(null);
+  Future<void> unpinMessage(String chatId, String messageId) async {
+    final chat = _chat(chatId);
+    chat.pinnedIds.remove(messageId);
+    _pinnedControllerFor(chatId).add(List.unmodifiable(chat.pinnedIds));
   }
 
   @override
@@ -309,8 +312,8 @@ class MockChatRepository implements ChatRepository {
         ),
       );
     chat.unread = 0;
-    chat.pinnedId = null;
-    _pinnedControllerFor(chatId).add(null);
+    chat.pinnedIds.clear();
+    _pinnedControllerFor(chatId).add(const []);
     _notify(chatId);
   }
 

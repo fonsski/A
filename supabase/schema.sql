@@ -199,10 +199,9 @@ $$;
 
 -- ── Чаты 1:1 ───────────────────────────────────────────────────────────────
 create table if not exists public.chats (
-  id                uuid primary key default gen_random_uuid(),
-  kind              text not null default 'dm' check (kind in ('dm','group')),
-  pinned_message_id bigint, -- FK добавляется после создания messages
-  created_at        timestamptz not null default now()
+  id         uuid primary key default gen_random_uuid(),
+  kind       text not null default 'dm' check (kind in ('dm','group')),
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.chat_members (
@@ -232,12 +231,21 @@ create table if not exists public.messages (
 );
 create index if not exists messages_chat_idx on public.messages (chat_id, id);
 
-alter table public.chats
-  add constraint chats_pinned_message_fk
-  foreign key (pinned_message_id) references public.messages (id)
-  on delete set null;
+-- Закрепы: несколько на чат, как в Telegram.
+create table if not exists public.chat_pins (
+  chat_id    uuid   not null references public.chats (id) on delete cascade,
+  message_id bigint not null references public.messages (id) on delete cascade,
+  pinned_by  uuid   not null references public.profiles (id),
+  pinned_at  timestamptz not null default now(),
+  primary key (chat_id, message_id)
+);
 
--- Закрепить сообщение (+ системная отметка в ленте).
+alter table public.chat_pins enable row level security;
+create policy chat_pins_member on public.chat_pins
+  for all using (is_chat_member(chat_id, auth.uid()))
+  with check (is_chat_member(chat_id, auth.uid()));
+
+-- Закрепить (+ системная отметка; повторный закреп поднимает пин наверх).
 create or replace function public.pin_message(chat uuid, message bigint)
 returns void language plpgsql security definer set search_path = public as $$
 begin
@@ -248,19 +256,22 @@ begin
                   where id = message and chat_id = chat and kind = 'user') then
     raise exception 'no such message';
   end if;
-  update chats set pinned_message_id = message where id = chat;
+  insert into chat_pins (chat_id, message_id, pinned_by)
+  values (chat, message, auth.uid())
+  on conflict (chat_id, message_id)
+  do update set pinned_at = now(), pinned_by = auth.uid();
   insert into messages (chat_id, author_id, body, kind)
   values (chat, auth.uid(), '', 'pin');
 end $$;
 
--- Открепить (без системной отметки, как в Telegram).
-create or replace function public.unpin_chat(chat uuid)
+-- Открепить конкретное сообщение (без системной отметки, как в Telegram).
+create or replace function public.unpin_message(chat uuid, message bigint)
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if not is_chat_member(chat, auth.uid()) then
     raise exception 'not a member';
   end if;
-  update chats set pinned_message_id = null where id = chat;
+  delete from chat_pins where chat_id = chat and message_id = message;
 end $$;
 
 -- «Удалить у себя»: персональное скрытие сообщений.
@@ -538,4 +549,4 @@ create policy chat_media_insert on storage.objects
 -- ── Realtime ───────────────────────────────────────────────────────────────
 alter publication supabase_realtime
   add table public.messages, public.posts, public.comments, public.reactions,
-            public.blacklist, public.chats;
+            public.blacklist, public.chats, public.chat_pins;

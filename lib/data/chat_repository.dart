@@ -33,13 +33,14 @@ abstract class ChatRepository {
   /// Сбрасывает счётчик непрочитанных.
   Future<void> markRead(String chatId);
 
-  /// id закреплённого сообщения чата (null — ничего не закреплено).
-  Stream<String?> watchPinned(String chatId);
+  /// id закреплённых сообщений чата, новые закрепы первыми.
+  Stream<List<String>> watchPinned(String chatId);
 
   /// Закрепляет сообщение (+ системная отметка в ленте).
   Future<void> pinMessage(String chatId, String messageId);
 
-  Future<void> unpin(String chatId);
+  /// Открепляет конкретное сообщение.
+  Future<void> unpinMessage(String chatId, String messageId);
 
   /// Очищает переписку у обеих сторон, оставляя системную отметку.
   Future<void> clearChat(String chatId);

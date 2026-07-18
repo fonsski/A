@@ -116,7 +116,7 @@ void main() {
       await repo.deleteMessageForAll('c1', 'c1-2');
       final messages = await repo.watchMessages('c1').first;
       expect(messages.any((m) => m.id == 'c1-2'), isFalse);
-      expect(await repo.watchPinned('c1').first, isNull);
+      expect(await repo.watchPinned('c1').first, isEmpty);
     });
 
     test('hideMessageForMe скрывает из выдачи и превью', () async {
@@ -127,21 +127,32 @@ void main() {
       expect(chats.firstWhere((c) => c.id == 'c3').lastText, '');
     });
 
-    test('pinMessage/unpin: плашка и системная отметка', () async {
-      await repo.pinMessage('c1', 'c1-2');
-      expect(await repo.watchPinned('c1').first, 'c1-2');
-      final messages = await repo.watchMessages('c1').first;
-      expect(messages.last.kind, MessageKind.pin);
-      expect(messages.last.systemText, 'Вы закрепили сообщение');
+    test(
+      'несколько закрепов: порядок, повторный закреп, открепление',
+      () async {
+        await repo.pinMessage('c1', 'c1-1');
+        await repo.pinMessage('c1', 'c1-2');
+        expect(await repo.watchPinned('c1').first, ['c1-2', 'c1-1']);
 
-      await repo.unpin('c1');
-      expect(await repo.watchPinned('c1').first, isNull);
-    });
+        // Повторный закреп поднимает пин наверх.
+        await repo.pinMessage('c1', 'c1-1');
+        expect(await repo.watchPinned('c1').first, ['c1-1', 'c1-2']);
 
-    test('clearChat сбрасывает закреп', () async {
+        final messages = await repo.watchMessages('c1').first;
+        expect(messages.last.kind, MessageKind.pin);
+        expect(messages.last.systemText, 'Вы закрепили сообщение');
+
+        await repo.unpinMessage('c1', 'c1-1');
+        expect(await repo.watchPinned('c1').first, ['c1-2']);
+        await repo.unpinMessage('c1', 'c1-2');
+        expect(await repo.watchPinned('c1').first, isEmpty);
+      },
+    );
+
+    test('clearChat сбрасывает закрепы', () async {
       await repo.pinMessage('c1', 'c1-2');
       await repo.clearChat('c1');
-      expect(await repo.watchPinned('c1').first, isNull);
+      expect(await repo.watchPinned('c1').first, isEmpty);
     });
 
     test('deleteChat убирает чат из списка', () async {

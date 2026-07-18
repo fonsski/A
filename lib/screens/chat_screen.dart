@@ -33,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   var _searchMode = false;
   var _searchQuery = '';
   var _lastMessages = const <Message>[];
+  var _pinnedIds = const <String>[];
   Message? _replyTo;
 
   @override
@@ -282,20 +283,17 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// Плашка закреплённого сообщения под шапкой (по макету):
-  /// автор красным, превью, время; тап — скролл к сообщению, крестик — снять.
+  /// Плашка последнего закрепа под шапкой: автор красным, превью, счётчик
+  /// «+N» при нескольких пинах; тап — скролл, иконка списка — все закрепы.
   Widget _buildPinnedBar(AColors colors) {
-    return StreamBuilder<String?>(
+    return StreamBuilder<List<String>>(
       stream: chatRepository.watchPinned(widget.chatId),
       builder: (context, snapshot) {
-        final pinnedId = snapshot.data;
+        _pinnedIds = snapshot.data ?? _pinnedIds;
         final message = _lastMessages
-            .where((m) => m.id == pinnedId)
+            .where((m) => m.id == _pinnedIds.firstOrNull)
             .firstOrNull;
         if (message == null) return const SizedBox.shrink();
-        final preview = message.attachmentKind != null
-            ? attachmentPreview(message.attachmentKind!, message.text)
-            : message.text;
         return Padding(
           padding: const EdgeInsets.fromLTRB(13, 8, 13, 0),
           child: GestureDetector(
@@ -307,6 +305,17 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 children: [
                   Icon(Icons.push_pin, color: colors.accent, size: 14),
+                  if (_pinnedIds.length > 1) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '+${_pinnedIds.length - 1}',
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 8),
                   Text(
                     message.mine ? 'Вы' : widget.peer.displayName,
@@ -319,7 +328,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      preview,
+                      message.preview,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: colors.textPrimary, fontSize: 12),
                     ),
@@ -329,13 +338,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                   IconButton(
-                    tooltip: 'Открепить',
+                    tooltip: 'Все закреплённые',
                     icon: Icon(
-                      Icons.close,
+                      Icons.format_list_bulleted,
                       color: colors.textSecondary,
                       size: 16,
                     ),
-                    onPressed: () => chatRepository.unpin(widget.chatId),
+                    onPressed: _showPinsSheet,
                   ),
                 ],
               ),
@@ -343,6 +352,113 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// Полное меню закреплённых, как в Telegram: список всех пинов,
+  /// переход к сообщению, точечное открепление и «Открепить все».
+  Future<void> _showPinsSheet() async {
+    final colors = context.colors;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheet) => StreamBuilder<List<String>>(
+        stream: chatRepository.watchPinned(widget.chatId),
+        initialData: _pinnedIds,
+        builder: (context, snapshot) {
+          final ids = snapshot.data ?? const <String>[];
+          if (ids.isEmpty) {
+            // Последний пин сняли прямо из шторки — закрываемся.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (Navigator.of(sheet).canPop()) Navigator.of(sheet).pop();
+            });
+            return const SizedBox(height: 80);
+          }
+          final pinned = [
+            for (final id in ids) _lastMessages.where((m) => m.id == id),
+          ].expand((m) => m).toList();
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Закреплённые сообщения',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final message in pinned)
+                        ListTile(
+                          leading: Icon(Icons.push_pin, color: colors.accent),
+                          title: Text(
+                            message.mine ? 'Вы' : widget.peer.displayName,
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            message.preview,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Открепить',
+                            icon: Icon(
+                              Icons.close,
+                              color: colors.textSecondary,
+                              size: 18,
+                            ),
+                            onPressed: () => chatRepository.unpinMessage(
+                              widget.chatId,
+                              message.id,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.of(sheet).pop();
+                            _scrollToMessage(message.id);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    for (final id in ids) {
+                      chatRepository.unpinMessage(widget.chatId, id);
+                    }
+                    Navigator.of(sheet).pop();
+                  },
+                  child: Text(
+                    'Открепить все',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -375,9 +491,14 @@ class _ChatScreenState extends State<ChatScreen> {
               setState(() => _replyTo = message);
               _inputFocus.requestFocus();
             }),
-            item(Icons.push_pin, 'Закрепить', () {
-              chatRepository.pinMessage(widget.chatId, message.id);
-            }),
+            if (_pinnedIds.contains(message.id))
+              item(Icons.push_pin_outlined, 'Открепить', () {
+                chatRepository.unpinMessage(widget.chatId, message.id);
+              })
+            else
+              item(Icons.push_pin, 'Закрепить', () {
+                chatRepository.pinMessage(widget.chatId, message.id);
+              }),
             item(Icons.visibility_off_outlined, 'Удалить у себя', () {
               chatRepository.hideMessageForMe(widget.chatId, message.id);
             }),
