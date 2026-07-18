@@ -32,6 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _searchController = TextEditingController();
   var _searchMode = false;
   var _searchQuery = '';
+  var _lastMessages = const <Message>[];
 
   @override
   void initState() {
@@ -279,6 +280,113 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// Плашка закреплённого сообщения под шапкой (по макету):
+  /// автор красным, превью, время; тап — скролл к сообщению, крестик — снять.
+  Widget _buildPinnedBar(AColors colors) {
+    return StreamBuilder<String?>(
+      stream: chatRepository.watchPinned(widget.chatId),
+      builder: (context, snapshot) {
+        final pinnedId = snapshot.data;
+        final message = _lastMessages
+            .where((m) => m.id == pinnedId)
+            .firstOrNull;
+        if (message == null) return const SizedBox.shrink();
+        final preview = message.attachmentKind != null
+            ? attachmentPreview(message.attachmentKind!, message.text)
+            : message.text;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(13, 8, 13, 0),
+          child: GestureDetector(
+            onTap: () => _scrollToMessage(message.id),
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.only(left: 16, right: 4),
+              decoration: pillDecoration(colors.surface, radius: 24),
+              child: Row(
+                children: [
+                  Icon(Icons.push_pin, color: colors.accent, size: 14),
+                  const SizedBox(width: 8),
+                  Text(
+                    message.mine ? 'Вы' : widget.peer.displayName,
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      preview,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: colors.textPrimary, fontSize: 12),
+                    ),
+                  ),
+                  Text(
+                    formatTime(message.sentAt),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 11),
+                  ),
+                  IconButton(
+                    tooltip: 'Открепить',
+                    icon: Icon(
+                      Icons.close,
+                      color: colors.textSecondary,
+                      size: 16,
+                    ),
+                    onPressed: () => chatRepository.unpin(widget.chatId),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Меню по долгому нажатию на сообщение.
+  Future<void> _showMessageSheet(Message message) async {
+    final colors = context.colors;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.push_pin, color: colors.accent),
+              title: Text(
+                'Закрепить',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+              onTap: () {
+                Navigator.of(sheet).pop();
+                chatRepository.pinMessage(widget.chatId, message.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Примерная прокрутка к сообщению по его позиции в списке.
+  void _scrollToMessage(String messageId) {
+    final index = _lastMessages.indexWhere((m) => m.id == messageId);
+    if (index < 0 || !_scroll.hasClients || _lastMessages.length < 2) return;
+    final target =
+        _scroll.position.maxScrollExtent * index / (_lastMessages.length - 1);
+    _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   Widget _buildSearchBar(AColors colors) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(13, 8, 13, 0),
@@ -454,12 +562,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+            _buildPinnedBar(colors),
             if (_searchMode) _buildSearchBar(colors),
             Expanded(
               child: StreamBuilder<List<Message>>(
                 stream: chatRepository.watchMessages(widget.chatId),
                 builder: (context, snapshot) {
                   var messages = snapshot.data ?? const <Message>[];
+                  _lastMessages = messages;
                   final query = _searchQuery.trim().toLowerCase();
                   if (_searchMode && query.isNotEmpty) {
                     messages = messages
@@ -482,10 +592,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(13, 16, 13, 16),
                     itemCount: messages.length,
-                    itemBuilder: (context, i) =>
-                        messages[i].kind == MessageKind.user
-                        ? _Bubble(message: messages[i])
-                        : _SystemNote(message: messages[i]),
+                    itemBuilder: (context, i) {
+                      final message = messages[i];
+                      if (message.kind != MessageKind.user) {
+                        return _SystemNote(message: message);
+                      }
+                      return GestureDetector(
+                        onLongPress: () => _showMessageSheet(message),
+                        child: _Bubble(message: message),
+                      );
+                    },
                   );
                 },
               ),

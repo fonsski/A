@@ -132,16 +132,17 @@ void main() {
 
     await tester.tap(find.text('Viktor Dudovich'));
     await tester.pumpAndSettle();
+    // Через сетку «Фото» инфо-чата: в ленте автоскролл гоняет позиции,
+    // а грид стоит на месте — тест стабилен.
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
 
-    // Тап по фото в пузыре — полноэкранный просмотр.
     final photo = find.byWidgetPredicate(
       (w) =>
           w is Image &&
           w.image is AssetImage &&
           (w.image as AssetImage).assetName == 'assets/images/media.png',
     );
-    await tester.ensureVisible(photo.first);
-    await tester.pumpAndSettle();
     await tester.tap(photo.first);
     await tester.pumpAndSettle();
     expect(find.byType(PhotoViewScreen), findsOneWidget);
@@ -374,6 +375,33 @@ void main() {
     expect(find.byType(HomeShell), findsOneWidget);
 
     await pinLock.clear();
+  });
+
+  testWidgets('закреп: long-press → плашка → открепить', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+
+    // Долгое нажатие на сообщение → «Закрепить».
+    await tester.longPress(find.text('Whatsup brother'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Закрепить'));
+    await tester.pumpAndSettle();
+
+    // Плашка пина с превью + системная отметка в ленте.
+    expect(find.byIcon(Icons.push_pin), findsOneWidget);
+    // Системная отметка добавляется в конец — долистываем.
+    await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(find.text('Вы закрепили сообщение'), findsOneWidget);
+    expect(find.text('Whatsup brother'), findsWidgets); // пузырь и/или плашка
+
+    // Крестик на плашке снимает закреп.
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.push_pin), findsNothing);
   });
 
   testWidgets('меню чата: поиск, очистка и удаление', (tester) async {

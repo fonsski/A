@@ -20,6 +20,7 @@ class _MockChat {
   final String peerName;
   final List<Message> messages;
   int unread;
+  String? pinnedId;
 
   ChatSummary get summary => ChatSummary(
     id: id,
@@ -226,6 +227,44 @@ class MockChatRepository implements ChatRepository {
     _chatsController.add(_summaries);
   }
 
+  final _pinnedControllers = <String, StreamController<String?>>{};
+
+  StreamController<String?> _pinnedControllerFor(String chatId) =>
+      _pinnedControllers.putIfAbsent(
+        chatId,
+        () => StreamController<String?>.broadcast(),
+      );
+
+  @override
+  Stream<String?> watchPinned(String chatId) async* {
+    yield _chat(chatId).pinnedId;
+    yield* _pinnedControllerFor(chatId).stream;
+  }
+
+  @override
+  Future<void> pinMessage(String chatId, String messageId) async {
+    final chat = _chat(chatId);
+    chat.pinnedId = messageId;
+    chat.messages.add(
+      Message(
+        id: 'm${_nextId++}',
+        chatId: chatId,
+        text: '',
+        sentAt: DateTime.now(),
+        mine: true,
+        kind: MessageKind.pin,
+      ),
+    );
+    _pinnedControllerFor(chatId).add(messageId);
+    _notify(chatId);
+  }
+
+  @override
+  Future<void> unpin(String chatId) async {
+    _chat(chatId).pinnedId = null;
+    _pinnedControllerFor(chatId).add(null);
+  }
+
   @override
   Future<void> clearChat(String chatId) async {
     final chat = _chat(chatId);
@@ -242,6 +281,8 @@ class MockChatRepository implements ChatRepository {
         ),
       );
     chat.unread = 0;
+    chat.pinnedId = null;
+    _pinnedControllerFor(chatId).add(null);
     _notify(chatId);
   }
 
