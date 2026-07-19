@@ -223,11 +223,19 @@ String formatTime(DateTime? time) {
   return formatClock(local);
 }
 
-/// «12:35» — только время; в чате день виден по разделителю.
+/// «12:35» — только время.
 String formatClock(DateTime time) {
   final local = time.toLocal();
   return '${local.hour.toString().padLeft(2, '0')}:'
       '${local.minute.toString().padLeft(2, '0')}';
+}
+
+/// Штамп на пузыре: «12:35» у сегодняшних, «18.07 12:35» у старых.
+String formatMessageStamp(DateTime time) {
+  final local = time.toLocal();
+  if (sameDay(local, DateTime.now())) return formatClock(local);
+  return '${local.day.toString().padLeft(2, '0')}.'
+      '${local.month.toString().padLeft(2, '0')} ${formatClock(local)}';
 }
 
 const _monthsGenitive = [

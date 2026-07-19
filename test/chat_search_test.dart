@@ -23,6 +23,17 @@ void main() {
       expect(formatClock(DateTime(2026, 7, 18, 9, 5)), '09:05');
     });
 
+    test('formatMessageStamp: сегодня без даты, старые с датой', () {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day, 12, 35);
+      expect(formatMessageStamp(today), '12:35');
+
+      final old = today.subtract(const Duration(days: 30));
+      final dd = old.day.toString().padLeft(2, '0');
+      final mm = old.month.toString().padLeft(2, '0');
+      expect(formatMessageStamp(old), '$dd.$mm 12:35');
+    });
+
     test('formatDayLabel: сегодня, вчера, дата', () {
       final now = DateTime.now();
       expect(formatDayLabel(now), 'Сегодня');
