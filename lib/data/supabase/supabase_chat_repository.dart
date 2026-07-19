@@ -263,26 +263,33 @@ class SupabaseChatRepository implements ChatRepository {
   Stream<Map<String, List<ReactionSummary>>> watchReactions(String chatId) {
     return _client
         .from('message_reactions')
-        .stream(primaryKey: ['message_id', 'user_id'])
+        .stream(primaryKey: ['message_id', 'user_id', 'emoji'])
         .eq('chat_id', chatId)
         .map((rows) {
-          final byMessage = <String, Map<String, String>>{};
+          // message id → эмодзи → (счётчик, есть ли моя).
+          final byMessage = <String, Map<String, ({int count, bool mine})>>{};
           for (final r in rows) {
-            byMessage.putIfAbsent(
+            final emojis = byMessage.putIfAbsent(
               '${r['message_id']}',
               () => {},
-            )['${r['user_id']}'] = r['emoji'] as String;
+            );
+            final emoji = r['emoji'] as String;
+            final prev = emojis[emoji];
+            emojis[emoji] = (
+              count: (prev?.count ?? 0) + 1,
+              mine: (prev?.mine ?? false) || r['user_id'] == _uid,
+            );
           }
           return {
             for (final entry in byMessage.entries)
               entry.key: [
-                for (final emoji in entry.value.values.toSet())
+                for (final e in entry.value.entries)
                   ReactionSummary(
-                    emoji: emoji,
-                    count: entry.value.values.where((e) => e == emoji).length,
-                    mine: entry.value[_uid] == emoji,
+                    emoji: e.key,
+                    count: e.value.count,
+                    mine: e.value.mine,
                   ),
-              ],
+              ]..sort((a, b) => b.count.compareTo(a.count)),
           };
         });
   }
@@ -299,15 +306,17 @@ class SupabaseChatRepository implements ChatRepository {
         .select('emoji')
         .eq('message_id', id)
         .eq('user_id', _uid)
+        .eq('emoji', emoji)
         .maybeSingle();
-    if (existing?['emoji'] == emoji) {
+    if (existing != null) {
       await _client
           .from('message_reactions')
           .delete()
           .eq('message_id', id)
-          .eq('user_id', _uid);
+          .eq('user_id', _uid)
+          .eq('emoji', emoji);
     } else {
-      await _client.from('message_reactions').upsert({
+      await _client.from('message_reactions').insert({
         'message_id': id,
         'user_id': _uid,
         'chat_id': chatId,

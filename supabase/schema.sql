@@ -238,7 +238,7 @@ create table if not exists public.message_reactions (
   chat_id    uuid   not null references public.chats (id) on delete cascade,
   emoji      text   not null check (char_length(emoji) between 1 and 16),
   created_at timestamptz not null default now(),
-  primary key (message_id, user_id)
+  primary key (message_id, user_id, emoji)
 );
 
 alter table public.message_reactions enable row level security;

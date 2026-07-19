@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
+import '../data/reaction_usage.dart';
 import '../notifications/notification_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -488,24 +489,27 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Ряд реакций, как в ТГ.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // Ряд реакций, как в ТГ: частые — первыми, мои подсвечены.
+            SizedBox(
+              height: 56,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                 children: [
-                  for (final emoji in kReactionEmojis)
+                  for (final emoji in reactionUsage.sorted())
                     GestureDetector(
                       onTap: () {
                         Navigator.of(sheet).pop();
-                        chatRepository.toggleReaction(
-                          widget.chatId,
-                          message.id,
-                          emoji,
-                        );
+                        _toggleReaction(message, emoji);
                       },
-                      child: Padding(
+                      child: Container(
                         padding: const EdgeInsets.all(6),
+                        decoration: _myReactions(message).contains(emoji)
+                            ? BoxDecoration(
+                                color: colors.accent.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              )
+                            : null,
                         child: Text(
                           emoji,
                           style: const TextStyle(fontSize: 26),
@@ -643,6 +647,20 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// Эмодзи, которые я уже поставил на [message].
+  Set<String> _myReactions(Message message) => {
+    for (final r in _reactions[message.id] ?? const <ReactionSummary>[])
+      if (r.mine) r.emoji,
+  };
+
+  void _toggleReaction(Message message, String emoji) {
+    // Счётчик частоты растёт только когда реакцию ставят, не снимают.
+    if (!_myReactions(message).contains(emoji)) {
+      reactionUsage.bump(emoji);
+    }
+    chatRepository.toggleReaction(widget.chatId, message.id, emoji);
+  }
+
   Widget _buildMessageList(AColors colors) {
     return StreamBuilder<List<Message>>(
       stream: chatRepository.watchMessages(widget.chatId),
@@ -686,11 +704,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? null
                     : () => _scrollToMessage(message.replyToId!),
                 reactions: _reactions[message.id] ?? const [],
-                onReactionTap: (emoji) => chatRepository.toggleReaction(
-                  widget.chatId,
-                  message.id,
-                  emoji,
-                ),
+                onReactionTap: (emoji) => _toggleReaction(message, emoji),
               ),
             );
           },

@@ -21,6 +21,7 @@ import 'package:a_messenger/data/mock/mock_friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
+import 'package:a_messenger/data/reaction_usage.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
@@ -77,7 +78,9 @@ void main() {
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    pinLock = PinLock(await SharedPreferences.getInstance());
+    final prefs = await SharedPreferences.getInstance();
+    pinLock = PinLock(prefs);
+    reactionUsage = ReactionUsage(prefs);
     authRepository = MockAuthRepository();
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();

@@ -14,6 +14,7 @@ import 'data/mock/mock_friends_repository.dart';
 import 'data/mock/mock_wall_repository.dart';
 import 'data/presence_repository.dart';
 import 'data/privacy_repository.dart';
+import 'data/reaction_usage.dart';
 import 'data/supabase/supabase_chat_repository.dart';
 import 'data/supabase/supabase_friends_repository.dart';
 import 'data/supabase/supabase_presence_repository.dart';
@@ -45,6 +46,7 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   await initTheme(prefs);
   pinLock = PinLock(prefs);
+  reactionUsage = ReactionUsage(prefs);
   if (AppConfig.useSupabase) {
     debugPrint('А?: Supabase.initialize starting...');
     await Supabase.initialize(

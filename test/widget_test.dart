@@ -12,6 +12,7 @@ import 'package:a_messenger/data/mock/mock_friends_repository.dart';
 import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
+import 'package:a_messenger/data/reaction_usage.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/user_profile_screen.dart';
 import 'package:a_messenger/main.dart';
@@ -29,7 +30,9 @@ import 'package:a_messenger/screens/profile_editor_screen.dart';
 void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    pinLock = PinLock(await SharedPreferences.getInstance());
+    final prefs = await SharedPreferences.getInstance();
+    pinLock = PinLock(prefs);
+    reactionUsage = ReactionUsage(prefs);
     authRepository = MockAuthRepository(
       confirmDelay: const Duration(seconds: 1),
     );
@@ -455,7 +458,9 @@ void main() {
     expect(find.byIcon(Icons.push_pin), findsNothing);
   });
 
-  testWidgets('реакции: поставить из шторки и снять по чипу', (tester) async {
+  testWidgets('реакции: несколько на сообщение, снятие по чипу', (
+    tester,
+  ) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -469,10 +474,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('👍 1'), findsOneWidget);
 
-    // Тап по чипу той же эмодзи снимает реакцию.
+    // Вторая реакция добавляется к первой, а не заменяет её.
+    await tester.longPress(find.text('договорились'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('❤️'));
+    await tester.pumpAndSettle();
+    expect(find.text('👍 1'), findsOneWidget);
+    expect(find.text('❤️ 1'), findsOneWidget);
+
+    // Тап по чипу снимает только эту реакцию.
     await tester.tap(find.text('👍 1'));
     await tester.pumpAndSettle();
     expect(find.text('👍 1'), findsNothing);
+    expect(find.text('❤️ 1'), findsOneWidget);
+
+    await tester.tap(find.text('❤️ 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('❤️ 1'), findsNothing);
   });
 
   testWidgets('меню чата: поиск, очистка и удаление', (tester) async {

@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:a_messenger/data/mock/mock_chat_repository.dart';
 import 'package:a_messenger/data/models.dart';
+import 'package:a_messenger/data/reaction_usage.dart';
 
 void main() {
   group('extractLinks', () {
@@ -13,6 +15,32 @@ void main() {
         ['https://flutter.dev', 'http://a.ru/x?y=1'],
       );
       expect(extractLinks('без ссылок'), isEmpty);
+    });
+  });
+
+  group('ReactionUsage', () {
+    test('sorted: частые первыми, хвост в исходном порядке', () async {
+      SharedPreferences.setMockInitialValues({});
+      final usage = ReactionUsage(await SharedPreferences.getInstance());
+      expect(usage.sorted(), kReactionEmojis);
+
+      await usage.bump('🔥');
+      await usage.bump('🔥');
+      await usage.bump('😱');
+      final sorted = usage.sorted();
+      expect(sorted[0], '🔥');
+      expect(sorted[1], '😱');
+      expect(sorted.sublist(2), [
+        for (final e in kReactionEmojis)
+          if (e != '🔥' && e != '😱') e,
+      ]);
+    });
+
+    test('счётчик переживает пересоздание (читается из prefs)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      await ReactionUsage(prefs).bump('💯');
+      expect(ReactionUsage(prefs).sorted().first, '💯');
     });
   });
 
@@ -155,23 +183,26 @@ void main() {
       expect(await repo.watchPinned('c1').first, isEmpty);
     });
 
-    test('toggleReaction: поставить, заменить, снять', () async {
+    test('toggleReaction: несколько реакций, повтор снимает', () async {
       // Поставить.
       await repo.toggleReaction('c3', 'c3-1', '👍');
       var reactions = await repo.watchReactions('c3').first;
-      var summary = reactions['c3-1']!.single;
+      final summary = reactions['c3-1']!.single;
       expect(summary.emoji, '👍');
       expect(summary.count, 1);
       expect(summary.mine, isTrue);
 
-      // Другая эмодзи заменяет мою реакцию, как в ТГ.
+      // Вторая эмодзи добавляется к первой.
       await repo.toggleReaction('c3', 'c3-1', '❤️');
       reactions = await repo.watchReactions('c3').first;
-      summary = reactions['c3-1']!.single;
-      expect(summary.emoji, '❤️');
-      expect(summary.count, 1);
+      expect(reactions['c3-1']!.map((r) => r.emoji).toSet(), {'👍', '❤️'});
+      expect(reactions['c3-1']!.every((r) => r.mine), isTrue);
 
-      // Повтор той же — снимает.
+      // Повтор той же — снимает только её.
+      await repo.toggleReaction('c3', 'c3-1', '👍');
+      reactions = await repo.watchReactions('c3').first;
+      expect(reactions['c3-1']!.single.emoji, '❤️');
+
       await repo.toggleReaction('c3', 'c3-1', '❤️');
       reactions = await repo.watchReactions('c3').first;
       expect(reactions.containsKey('c3-1'), isFalse);
