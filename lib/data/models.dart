@@ -220,6 +220,54 @@ String formatTime(DateTime? time) {
     return '${local.day.toString().padLeft(2, '0')}.'
         '${local.month.toString().padLeft(2, '0')}';
   }
+  return formatClock(local);
+}
+
+/// «12:35» — только время; в чате день виден по разделителю.
+String formatClock(DateTime time) {
+  final local = time.toLocal();
   return '${local.hour.toString().padLeft(2, '0')}:'
       '${local.minute.toString().padLeft(2, '0')}';
+}
+
+const _monthsGenitive = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+];
+
+bool sameDay(DateTime a, DateTime b) {
+  final la = a.toLocal();
+  final lb = b.toLocal();
+  return la.year == lb.year && la.month == lb.month && la.day == lb.day;
+}
+
+/// «Сегодня» / «Вчера» / «18 июля» / «18 июля 2025» — разделители дней.
+String formatDayLabel(DateTime time) {
+  final local = time.toLocal();
+  final now = DateTime.now();
+  if (sameDay(local, now)) return 'Сегодня';
+  if (sameDay(local, now.subtract(const Duration(days: 1)))) return 'Вчера';
+  final base = '${local.day} ${_monthsGenitive[local.month - 1]}';
+  return local.year == now.year ? base : '$base ${local.year}';
+}
+
+/// «в 12:35» / «вчера в 12:35» / «18 июля в 12:35» — последний визит.
+String formatLastSeen(DateTime time) {
+  final clock = formatClock(time);
+  final day = formatDayLabel(time);
+  return switch (day) {
+    'Сегодня' => 'в $clock',
+    'Вчера' => 'вчера в $clock',
+    _ => '$day в $clock',
+  };
 }

@@ -467,6 +467,9 @@ void main() {
     await tester.tap(find.text('Trofim More'));
     await tester.pumpAndSettle();
 
+    // Лента размечена разделителями дней.
+    expect(find.text('Сегодня'), findsOneWidget);
+
     // Long-press → ряд эмодзи → 👍 ставит реакцию.
     await tester.longPress(find.text('договорились'));
     await tester.pumpAndSettle();
