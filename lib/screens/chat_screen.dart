@@ -1308,7 +1308,7 @@ class _Bubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  formatClock(message.sentAt),
+                  formatMessageStamp(message.sentAt),
                   style: TextStyle(
                     color: message.mine ? colors.accent : colors.textSecondary,
                     fontSize: 10,
