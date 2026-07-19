@@ -22,20 +22,24 @@ class _MockChat {
   int unread;
   final pinnedIds = <String>[]; // новые закрепы первыми
   final hidden = <String>{}; // «удалено у себя»
-  // message id → (кто → эмодзи); «я» в моке — ключ 'me'.
-  final reactions = <String, Map<String, String>>{};
+  // message id → (кто → его эмодзи); «я» в моке — ключ 'me'.
+  final reactions = <String, Map<String, Set<String>>>{};
 
   Map<String, List<ReactionSummary>> get reactionSummaries => {
     for (final entry in reactions.entries)
-      if (entry.value.isNotEmpty)
-        entry.key: [
-          for (final emoji in entry.value.values.toSet())
-            ReactionSummary(
-              emoji: emoji,
-              count: entry.value.values.where((e) => e == emoji).length,
-              mine: entry.value['me'] == emoji,
-            ),
-        ],
+      if (entry.value.values.any((set) => set.isNotEmpty))
+        entry.key: () {
+          final all = entry.value.values.expand((set) => set);
+          final summaries = [
+            for (final emoji in all.toSet())
+              ReactionSummary(
+                emoji: emoji,
+                count: all.where((e) => e == emoji).length,
+                mine: entry.value['me']?.contains(emoji) ?? false,
+              ),
+          ]..sort((a, b) => b.count.compareTo(a.count));
+          return summaries;
+        }(),
   };
 
   List<Message> get visibleMessages => [
@@ -336,12 +340,10 @@ class MockChatRepository implements ChatRepository {
     String emoji,
   ) async {
     final chat = _chat(chatId);
-    final byUser = chat.reactions.putIfAbsent(messageId, () => {});
-    if (byUser['me'] == emoji) {
-      byUser.remove('me'); // повтор той же — снимаем
-    } else {
-      byUser['me'] = emoji; // новая или замена
-    }
+    final mine = chat.reactions
+        .putIfAbsent(messageId, () => {})
+        .putIfAbsent('me', () => {});
+    if (!mine.remove(emoji)) mine.add(emoji); // повтор — снимает
     _reactionControllerFor(chatId).add(chat.reactionSummaries);
   }
 

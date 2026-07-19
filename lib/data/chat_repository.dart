@@ -45,7 +45,8 @@ abstract class ChatRepository {
   /// Реакции чата: message id → сводки по эмодзи.
   Stream<Map<String, List<ReactionSummary>>> watchReactions(String chatId);
 
-  /// Ставит реакцию; повтор той же — снимает, другая — заменяет (как в ТГ).
+  /// Ставит реакцию; повтор той же — снимает. Реакций на сообщении
+  /// от одного пользователя может быть несколько.
   Future<void> toggleReaction(String chatId, String messageId, String emoji);
 
   /// Очищает переписку у обеих сторон, оставляя системную отметку.
