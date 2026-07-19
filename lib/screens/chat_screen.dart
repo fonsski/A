@@ -688,24 +688,37 @@ class _ChatScreenState extends State<ChatScreen> {
           itemCount: messages.length,
           itemBuilder: (context, i) {
             final message = messages[i];
+            // Разделитель «Сегодня» / «Вчера» / «18 июля» при смене дня.
+            final newDay =
+                i == 0 || !sameDay(messages[i - 1].sentAt, message.sentAt);
+            final Widget item;
             if (message.kind != MessageKind.user) {
-              return _SystemNote(message: message);
+              item = _SystemNote(message: message);
+            } else {
+              item = GestureDetector(
+                onLongPress: () => _showMessageSheet(message),
+                child: _Bubble(
+                  message: message,
+                  replySource: message.replyToId == null
+                      ? null
+                      : _lastMessages
+                            .where((m) => m.id == message.replyToId)
+                            .firstOrNull,
+                  onReplyTap: message.replyToId == null
+                      ? null
+                      : () => _scrollToMessage(message.replyToId!),
+                  reactions: _reactions[message.id] ?? const [],
+                  onReactionTap: (emoji) => _toggleReaction(message, emoji),
+                ),
+              );
             }
-            return GestureDetector(
-              onLongPress: () => _showMessageSheet(message),
-              child: _Bubble(
-                message: message,
-                replySource: message.replyToId == null
-                    ? null
-                    : _lastMessages
-                          .where((m) => m.id == message.replyToId)
-                          .firstOrNull,
-                onReplyTap: message.replyToId == null
-                    ? null
-                    : () => _scrollToMessage(message.replyToId!),
-                reactions: _reactions[message.id] ?? const [],
-                onReactionTap: (emoji) => _toggleReaction(message, emoji),
-              ),
+            if (!newDay) return item;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DayDivider(date: message.sentAt),
+                item,
+              ],
             );
           },
         );
@@ -928,6 +941,38 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 /// Системная отметка в ленте («Вы очистили чат» и т.п.) — серым по центру.
+/// Плашка с датой между сообщениями разных дней, как в Telegram.
+class _DayDivider extends StatelessWidget {
+  const _DayDivider({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: colors.surface.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            formatDayLabel(date),
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SystemNote extends StatelessWidget {
   const _SystemNote({required this.message});
 
@@ -1263,7 +1308,7 @@ class _Bubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  formatTime(message.sentAt),
+                  formatClock(message.sentAt),
                   style: TextStyle(
                     color: message.mine ? colors.accent : colors.textSecondary,
                     fontSize: 10,

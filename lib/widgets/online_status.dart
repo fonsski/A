@@ -4,7 +4,8 @@ import '../data/models.dart';
 import '../data/presence_repository.dart';
 import '../theme.dart';
 
-/// «в сети» / «был(а) в сети 12:07» / «не в сети» — с учётом приватности.
+/// «в сети» / «был(а) в сети вчера в 12:07» / «не в сети» — с учётом
+/// приватности.
 class OnlineStatus extends StatelessWidget {
   const OnlineStatus({
     super.key,
@@ -40,7 +41,7 @@ class OnlineStatus extends StatelessWidget {
           builder: (context, seen) {
             final t = seen.data;
             return Text(
-              t != null ? 'был(а) в сети ${formatTime(t)}' : 'не в сети',
+              t != null ? 'был(а) в сети ${formatLastSeen(t)}' : 'не в сети',
               style: TextStyle(
                 color: colors.textSecondary,
                 fontSize: fontSize,

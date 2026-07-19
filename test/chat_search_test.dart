@@ -18,6 +18,49 @@ void main() {
     });
   });
 
+  group('форматирование дат', () {
+    test('formatClock — всегда часы:минуты', () {
+      expect(formatClock(DateTime(2026, 7, 18, 9, 5)), '09:05');
+    });
+
+    test('formatDayLabel: сегодня, вчера, дата', () {
+      final now = DateTime.now();
+      expect(formatDayLabel(now), 'Сегодня');
+      expect(formatDayLabel(now.subtract(const Duration(days: 1))), 'Вчера');
+
+      final old = now.subtract(const Duration(days: 30));
+      expect(formatDayLabel(old), startsWith('${old.day} '));
+
+      final lastYear = DateTime(now.year - 1, 3, 8);
+      expect(formatDayLabel(lastYear), '8 марта ${now.year - 1}');
+    });
+
+    test('formatLastSeen: время всегда присутствует', () {
+      final now = DateTime.now();
+      // Берём момент в «сегодня», не попадающий на границу суток.
+      final today = DateTime(now.year, now.month, now.day, 12, 35);
+      expect(formatLastSeen(today), 'в 12:35');
+      expect(
+        formatLastSeen(today.subtract(const Duration(days: 1))),
+        'вчера в 12:35',
+      );
+      final old = today.subtract(const Duration(days: 30));
+      expect(formatLastSeen(old), endsWith(' в 12:35'));
+      expect(formatLastSeen(old), isNot(startsWith('в ')));
+    });
+
+    test('sameDay сравнивает календарные дни', () {
+      expect(
+        sameDay(DateTime(2026, 7, 18, 23, 59), DateTime(2026, 7, 18)),
+        isTrue,
+      );
+      expect(
+        sameDay(DateTime(2026, 7, 18, 23, 59), DateTime(2026, 7, 19)),
+        isFalse,
+      );
+    });
+  });
+
   group('ReactionUsage', () {
     test('sorted: частые первыми, хвост в исходном порядке', () async {
       SharedPreferences.setMockInitialValues({});
