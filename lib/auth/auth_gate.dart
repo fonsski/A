@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../screens/auth/auth_desktop_frame.dart';
 import '../screens/auth/auth_flow.dart';
 import '../screens/auth/pick_username_screen.dart';
 import '../screens/auth/pin_lock_screen.dart';
@@ -20,8 +21,10 @@ class AuthGate extends StatelessWidget {
       initialData: authRepository.current,
       builder: (context, snapshot) {
         final auth = snapshot.data;
-        if (auth == null) return const AuthFlow();
-        if (auth.needsUsername) return const PickUsernameScreen();
+        if (auth == null) return const AuthDesktopFrame(child: AuthFlow());
+        if (auth.needsUsername) {
+          return const AuthDesktopFrame(child: PickUsernameScreen());
+        }
         return ValueListenableBuilder<bool>(
           valueListenable: pinLock.locked,
           builder: (context, locked, _) =>

@@ -305,19 +305,11 @@ class _ActionRow extends StatelessWidget {
             onTap: onTap,
             child: Container(
               height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              alignment: Alignment.center, // в макете надпись по центру
               decoration: pillDecoration(colors.surface),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      action,
-                      style: TextStyle(color: colors.textPrimary, fontSize: 16),
-                    ),
-                  ),
-                  if (onTap != null)
-                    Icon(Icons.chevron_right, color: colors.accent),
-                ],
+              child: Text(
+                action,
+                style: TextStyle(color: colors.textPrimary, fontSize: 16),
               ),
             ),
           ),

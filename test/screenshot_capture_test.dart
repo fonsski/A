@@ -24,6 +24,8 @@ import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
+import 'package:a_messenger/screens/account_security_screen.dart';
+import 'package:a_messenger/screens/auth/auth_desktop_frame.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
 import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
@@ -170,6 +172,29 @@ void main() {
   testWidgets('login', (tester) async {
     await prepare(tester, LoginScreen(onSignUpTap: () {}));
     await _capture(tester, '11_login');
+  });
+
+  testWidgets('account security', (tester) async {
+    // Вне runAsync таймер мока в fake-async не сработал бы и тест завис.
+    await tester.runAsync(
+      () =>
+          authRepository.signIn(identifier: 'demo@a.ru', password: 'password1'),
+    );
+    await prepare(tester, const AccountSecurityScreen());
+    await _capture(tester, '22_account_security');
+  });
+
+  testWidgets('desktop login', (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _wrap(
+        AuthDesktopFrame(child: LoginScreen(onSignUpTap: () {})),
+        mode: ThemeMode.light,
+      ),
+    );
+    await _capture(tester, '23_desktop_login');
   });
 
   testWidgets('signup', (tester) async {

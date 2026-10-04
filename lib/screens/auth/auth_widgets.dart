@@ -2,6 +2,43 @@ import 'package:flutter/material.dart';
 
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import 'auth_desktop_frame.dart';
+
+/// Вертикальные интервалы форм входа/регистрации из макета
+/// (кадры LogIn / Sing up): логотип → переключатель → поля → кнопка.
+const kAuthTopGap = 47.0; // логотип начинается на y≈67
+const kAuthLogoToToggle = 160.0;
+const kAuthLogoToToggleMin = 24.0;
+const kAuthToggleToForm = 22.0;
+const kAuthFieldGap = 22.0;
+const kAuthFormToButton = 18.0;
+
+/// Верх форм входа/регистрации: на телефоне логотип и большой отступ до
+/// переключателя, в десктопной карточке (кадр «Desktop - 1») — только
+/// небольшой отступ, переключатель стоит в самом верху.
+class AuthTop extends StatelessWidget {
+  const AuthTop({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width >= kAuthDesktopBreakpoint) {
+      return const SizedBox(height: 4);
+    }
+    // В макете (874 px) между логотипом и переключателем 160 px; на низких
+    // окнах отступ сжимается, чтобы форма целиком оставалась на экране.
+    final gap = (MediaQuery.sizeOf(context).height - 570).clamp(
+      kAuthLogoToToggleMin,
+      kAuthLogoToToggle,
+    );
+    return Column(
+      children: [
+        const SizedBox(height: kAuthTopGap),
+        const AuthLogo(),
+        SizedBox(height: gap),
+      ],
+    );
+  }
+}
 
 /// Логотип «А?» в шапке экранов входа/регистрации.
 class AuthLogo extends StatelessWidget {

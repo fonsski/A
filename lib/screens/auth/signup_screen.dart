@@ -69,16 +69,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(21, 20, 21, 16),
           children: [
-            const SizedBox(height: 32),
-            const AuthLogo(),
-            const SizedBox(height: 48),
+            const AuthTop(),
             AuthToggle(
               signUpSelected: true,
               onChanged: (signUp) {
                 if (!signUp) widget.onLoginTap();
               },
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: kAuthToggleToForm),
             AuthField(
               label: 'Email',
               hint: 'gnida@tvar.ru',
@@ -86,7 +84,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               keyboardType: TextInputType.emailAddress,
               errorText: _emailError,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: kAuthFieldGap),
             AuthField(
               label: 'Пароль',
               hint: 'пароль введи сюда',
@@ -94,7 +92,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               obscure: true,
               errorText: _passwordError,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: kAuthFieldGap),
             AuthField(
               label: 'Повтори пароль',
               hint: 'еще раз пароль',
@@ -102,7 +100,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               obscure: true,
               errorText: _password2Error,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: kAuthFormToButton),
             AuthButton(
               label: 'Зарегистрироваться',
               onPressed: _submit,
