@@ -44,12 +44,15 @@ class ChatSummary {
   );
 }
 
-enum AttachmentKind { image, video, file }
+/// Тип вложения. [voice] — голосовое сообщение, [circle] — видеокружок.
+enum AttachmentKind { image, video, file, voice, circle }
 
 String attachmentEmoji(AttachmentKind kind) => switch (kind) {
   AttachmentKind.image => '📷',
   AttachmentKind.video => '🎬',
   AttachmentKind.file => '📎',
+  AttachmentKind.voice => '🎤',
+  AttachmentKind.circle => '⭕',
 };
 
 /// Превью для списка чатов: «📷 Фото» или «📷 подпись», если она есть.
@@ -58,6 +61,8 @@ String attachmentPreview(AttachmentKind kind, [String caption = '']) {
     AttachmentKind.image => 'Фото',
     AttachmentKind.video => 'Видео',
     AttachmentKind.file => 'Файл',
+    AttachmentKind.voice => 'Голосовое сообщение',
+    AttachmentKind.circle => 'Видеосообщение',
   };
   return '${attachmentEmoji(kind)} ${caption.isEmpty ? label : caption}';
 }
@@ -77,6 +82,8 @@ class Message {
     this.attachmentUrl,
     this.attachmentKind,
     this.attachmentName,
+    this.duration,
+    this.waveform,
   });
 
   final String id;
@@ -91,6 +98,12 @@ class Message {
   final String? attachmentUrl;
   final AttachmentKind? attachmentKind;
   final String? attachmentName;
+
+  /// Длительность голосового/кружка.
+  final Duration? duration;
+
+  /// Столбики волны голосового: значения 0..[kWaveformMax].
+  final List<int>? waveform;
 
   /// Короткое превью для плашек ответа/закрепа.
   String get preview =>
@@ -116,6 +129,16 @@ class ReactionSummary {
   final String emoji;
   final int count;
   final bool mine;
+}
+
+/// Максимальное значение столбика волны.
+const kWaveformMax = 31;
+
+/// «00:07» — длительность голосового или кружка.
+String formatDuration(Duration d) {
+  final m = d.inMinutes.toString().padLeft(2, '0');
+  final sec = (d.inSeconds % 60).toString().padLeft(2, '0');
+  return '$m:$sec';
 }
 
 /// Набор реакций по умолчанию, как в Telegram (кастомные — в планах).

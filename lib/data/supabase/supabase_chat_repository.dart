@@ -69,6 +69,8 @@ class SupabaseChatRepository implements ChatRepository {
                 AttachmentKind.file,
                 (r['last_body'] ?? '') as String,
               ),
+              'voice' => attachmentPreview(AttachmentKind.voice),
+              'circle' => attachmentPreview(AttachmentKind.circle),
               _ =>
                 r['last_at'] != null &&
                         ((r['last_body'] ?? '') as String).isEmpty
@@ -148,10 +150,18 @@ class SupabaseChatRepository implements ChatRepository {
           attachmentKind: switch (r['attachment_type'] as String?) {
             'video' => AttachmentKind.video,
             'file' => AttachmentKind.file,
+            'voice' => AttachmentKind.voice,
+            'circle' => AttachmentKind.circle,
             'image' => AttachmentKind.image,
             _ => r['image_url'] != null ? AttachmentKind.image : null,
           },
           attachmentName: r['attachment_name'] as String?,
+          duration: r['duration_ms'] == null
+              ? null
+              : Duration(milliseconds: (r['duration_ms'] as num).toInt()),
+          waveform: (r['waveform'] as List?)
+              ?.map((v) => (v as num).toInt())
+              .toList(),
         ),
   ];
 
@@ -204,6 +214,8 @@ class SupabaseChatRepository implements ChatRepository {
     String filename,
     AttachmentKind kind, {
     String caption = '',
+    Duration? duration,
+    List<int>? waveform,
   }) async {
     // Имя в Storage — своё (кириллица/пробелы ломают ключи),
     // человекочитаемое имя хранится в attachment_name.
@@ -224,6 +236,8 @@ class SupabaseChatRepository implements ChatRepository {
       'image_url': url,
       'attachment_type': kind.name,
       'attachment_name': filename,
+      'duration_ms': ?duration?.inMilliseconds,
+      'waveform': ?waveform,
     });
   }
 

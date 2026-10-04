@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart' as fs;
@@ -9,10 +10,13 @@ import 'package:video_player/video_player.dart';
 import '../data/chat_repository.dart';
 import '../data/models.dart';
 import '../data/reaction_usage.dart';
+import '../media/voice_player.dart';
+import '../media/voice_recorder.dart';
 import '../notifications/notification_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/online_status.dart';
+import '../widgets/voice_widgets.dart';
 import 'chat_info_screen.dart';
 import 'photo_view_screen.dart';
 
@@ -38,15 +42,32 @@ class _ChatScreenState extends State<ChatScreen> {
   var _reactions = const <String, List<ReactionSummary>>{};
   Message? _replyTo;
 
+  // Запись голосового.
+  static const _minVoice = Duration(seconds: 1);
+  static const _maxVoice = Duration(minutes: 5);
+  var _recording = false;
+  final _levels = <double>[];
+  final _recordClock = Stopwatch();
+  StreamSubscription<double>? _levelSub;
+  Timer? _ticker;
+
   @override
   void initState() {
     super.initState();
     activeChatId = widget.chatId; // по открытому чату не уведомляем
+    // Кнопка справа: микрофон при пустом поле, «А?» при тексте.
+    _controller.addListener(_onTextChanged);
   }
+
+  void _onTextChanged() => setState(() {});
 
   @override
   void dispose() {
     if (activeChatId == widget.chatId) activeChatId = null;
+    _levelSub?.cancel();
+    _ticker?.cancel();
+    if (_recording) voiceRecorder.cancel();
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _scroll.dispose();
     _inputFocus.dispose();
@@ -57,11 +78,80 @@ class _ChatScreenState extends State<ChatScreen> {
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+    _stickToBottom = true;
     chatRepository.sendMessage(widget.chatId, text, replyToId: _replyTo?.id);
     _controller.clear();
     setState(() => _replyTo = null);
     // Не теряем фокус — чаттинг без лишних тапов.
     _inputFocus.requestFocus();
+  }
+
+  void _toast(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _startVoice() async {
+    await voicePlayer.stop(); // не пишем поверх воспроизведения
+    final result = await voiceRecorder.start();
+    if (!mounted) return;
+    if (result != RecorderStart.started) {
+      _toast(
+        result == RecorderStart.denied
+            ? 'Нет доступа к микрофону — разреши его в настройках'
+            : 'Запись голосовых здесь недоступна',
+      );
+      return;
+    }
+    _levels.clear();
+    _recordClock
+      ..reset()
+      ..start();
+    _levelSub = voiceRecorder.levels.listen((level) {
+      if (mounted) setState(() => _levels.add(level));
+    });
+    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (_recordClock.elapsed >= _maxVoice) {
+        _finishVoice();
+      } else if (mounted) {
+        setState(() {});
+      }
+    });
+    setState(() => _recording = true);
+  }
+
+  /// Останавливает запись: [send] — отправить, иначе выбросить.
+  Future<void> _finishVoice({bool send = true}) async {
+    if (!_recording) return;
+    _ticker?.cancel();
+    unawaited(_levelSub?.cancel()); // ждать отписки незачем
+    _recordClock.stop();
+    final RecordedVoice? voice;
+    if (send) {
+      voice = await voiceRecorder.stop();
+    } else {
+      await voiceRecorder.cancel();
+      voice = null;
+    }
+    if (!mounted) return;
+    setState(() => _recording = false);
+    if (!send) return;
+    if (voice == null) return _toast('Запись не получилась');
+    if (voice.duration < _minVoice) return _toast('Слишком коротко');
+    _stickToBottom = true;
+    try {
+      await chatRepository.sendAttachment(
+        widget.chatId,
+        voice.bytes,
+        voice.mimeType,
+        voice.filename,
+        AttachmentKind.voice,
+        duration: voice.duration,
+        waveform: voice.waveform,
+      );
+    } catch (e) {
+      _toast('Голосовое не отправилось: $e');
+    }
   }
 
   void _openInfo() {
@@ -131,11 +221,14 @@ class _ChatScreenState extends State<ChatScreen> {
           bytes = await picked.readAsBytes();
           mime = picked.mimeType ?? 'application/octet-stream';
           name = picked.name;
+        case AttachmentKind.voice || AttachmentKind.circle:
+          return; // записываются кнопками записи, а не выбираются из файлов
       }
       if (!mounted) return;
       // Подпись к медиа, как в Telegram; null — передумал отправлять.
       final caption = await _askCaption(kind, name, bytes);
       if (caption == null) return;
+      _stickToBottom = true;
       await chatRepository.sendAttachment(
         widget.chatId,
         bytes,
@@ -709,6 +802,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       : () => _scrollToMessage(message.replyToId!),
                   reactions: _reactions[message.id] ?? const [],
                   onReactionTap: (emoji) => _toggleReaction(message, emoji),
+                  voiceTitle: message.mine ? 'Вы' : widget.peer.displayName,
                 ),
               );
             }
@@ -780,6 +874,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   var _didInitialScroll = false;
 
+  /// Своё сообщение всегда показываем, даже если лента была прокручена выше.
+  var _stickToBottom = false;
+
   /// Прыгаем в конец при открытии и при новых сообщениях, но только если
   /// пользователь и так у низа — читающего историю вниз не утаскиваем.
   void _scrollDown() {
@@ -787,11 +884,156 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!_scroll.hasClients) return;
       final position = _scroll.position;
       final nearBottom = position.maxScrollExtent - position.pixels < 120;
-      if (!_didInitialScroll || nearBottom) {
+      if (!_didInitialScroll || nearBottom || _stickToBottom) {
         _didInitialScroll = true;
-        position.jumpTo(position.maxScrollExtent);
+        _stickToBottom = false;
+        _jumpToEnd();
       }
     });
+  }
+
+  /// Прыжок в конец ленты. Высота непостроенных элементов — оценка, она
+  /// уточняется по мере построения, поэтому добиваем ещё парой кадров.
+  void _jumpToEnd([int retries = 2]) {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    position.jumpTo(position.maxScrollExtent);
+    if (retries == 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients &&
+          _scroll.position.maxScrollExtent - _scroll.position.pixels > 1) {
+        _jumpToEnd(retries - 1);
+      }
+    });
+  }
+
+  /// Поле ввода; справа «А?» (есть текст) или микрофон (пусто).
+  Widget _buildInputRow(AColors colors) {
+    final hasText = _controller.text.trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(13, 0, 13, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.only(left: 28, right: 4),
+              decoration: pillDecoration(colors.surface),
+              child: Center(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _inputFocus,
+                  onSubmitted: (_) => _send(),
+                  textAlignVertical: TextAlignVertical.center,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 16),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    isCollapsed: true,
+                    hintText: 'Сообщение',
+                    hintStyle: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 16,
+                    ),
+                    suffixIcon: IconButton(
+                      tooltip: 'Прикрепить',
+                      icon: Icon(
+                        Icons.attach_file,
+                        color: colors.textSecondary,
+                      ),
+                      onPressed: _attach,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: hasText ? _send : _startVoice,
+            child: Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: pillDecoration(colors.accent),
+              child: hasText
+                  ? Text(
+                      'А?',
+                      style: TextStyle(
+                        color: colors.bg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  : Icon(Icons.mic, color: colors.bg, size: 24),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Панель записи: отмена, таймер с живой волной, отправка.
+  Widget _buildRecordingBar(AColors colors) {
+    final elapsed = _recordClock.elapsed;
+    final visible = _levels.length > 36
+        ? _levels.sublist(_levels.length - 36)
+        : _levels;
+    final bars = [
+      for (final l in visible)
+        (l * kWaveformMax).round().clamp(2, kWaveformMax),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(13, 0, 13, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => _finishVoice(send: false),
+            child: Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: pillDecoration(colors.surface),
+              child: Icon(Icons.delete_outline, color: colors.accent),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: pillDecoration(colors.surface),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.fiber_manual_record,
+                    size: 12,
+                    color: colors.accent,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    formatDuration(elapsed),
+                    style: TextStyle(color: colors.textPrimary, fontSize: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: WaveformView(bars: bars, height: 24)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _finishVoice,
+            child: Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: pillDecoration(colors.accent),
+              child: Icon(Icons.send, color: colors.bg, size: 22),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -860,6 +1102,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+            VoicePlayerBar(chatId: widget.chatId),
             _buildPinnedBar(colors),
             if (_searchMode) _buildSearchBar(colors),
             Expanded(
@@ -872,67 +1115,10 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             _buildReplyBar(colors),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(13, 0, 13, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 48,
-                      padding: const EdgeInsets.only(left: 28, right: 4),
-                      decoration: pillDecoration(colors.surface),
-                      child: Center(
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _inputFocus,
-                          onSubmitted: (_) => _send(),
-                          textAlignVertical: TextAlignVertical.center,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 16,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                            hintText: 'Сообщение',
-                            hintStyle: TextStyle(
-                              color: colors.textSecondary,
-                              fontSize: 16,
-                            ),
-                            suffixIcon: IconButton(
-                              tooltip: 'Прикрепить',
-                              icon: Icon(
-                                Icons.attach_file,
-                                color: colors.textSecondary,
-                              ),
-                              onPressed: _attach,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _send,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      alignment: Alignment.center,
-                      decoration: pillDecoration(colors.accent),
-                      child: Text(
-                        'А?',
-                        style: TextStyle(
-                          color: colors.bg,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            if (_recording)
+              _buildRecordingBar(colors)
+            else
+              _buildInputRow(colors),
           ],
         ),
       ),
@@ -999,9 +1185,12 @@ class _SystemNote extends StatelessWidget {
 /// Вложение в пузыре: фото — инлайном, видео — инлайн-плеером,
 /// файл — плашкой с открытием.
 class _Attachment extends StatelessWidget {
-  const _Attachment({required this.message});
+  const _Attachment({required this.message, required this.voiceTitle});
 
   final Message message;
+
+  /// Подпись плашки-плеера для голосовых — имя автора.
+  final String voiceTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -1034,6 +1223,16 @@ class _Attachment extends StatelessWidget {
         return _VideoBubble(message: message);
       case AttachmentKind.file:
         return _AttachmentTile(message: message, isVideo: false);
+      case AttachmentKind.voice:
+        return VoiceMessageView(
+          message: message,
+          title: voiceTitle,
+          onError: () => ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Не удалось воспроизвести голосовое')),
+          ),
+        );
+      case AttachmentKind.circle:
+        return _AttachmentTile(message: message, isVideo: true);
     }
   }
 }
@@ -1191,9 +1390,13 @@ class _Bubble extends StatelessWidget {
     this.onReplyTap,
     this.reactions = const [],
     this.onReactionTap,
+    this.voiceTitle = '',
   });
 
   final Message message;
+
+  /// Имя автора для плашки-плеера голосовых.
+  final String voiceTitle;
 
   /// Исходное сообщение, если это ответ (null — удалено или не найдено).
   final Message? replySource;
@@ -1288,7 +1491,8 @@ class _Bubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (message.replyToId != null) _replyBlock(context, colors),
-            if (message.attachmentUrl != null) _Attachment(message: message),
+            if (message.attachmentUrl != null)
+              _Attachment(message: message, voiceTitle: voiceTitle),
             if (message.text.isNotEmpty)
               Text(
                 message.text,

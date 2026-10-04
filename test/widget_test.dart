@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +15,8 @@ import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
+import 'package:a_messenger/media/voice_player.dart';
+import 'package:a_messenger/media/voice_recorder.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/user_profile_screen.dart';
 import 'package:a_messenger/main.dart';
@@ -27,12 +31,36 @@ import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/photo_view_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
 
+import 'fakes.dart';
+
+/// Листает ленту чата вниз-вверх, пока [target] не построится (лента ленивая).
+Future<void> revealInChat(WidgetTester tester, Finder target) async {
+  for (var i = 0; i < 10 && target.evaluate().isEmpty; i++) {
+    await tester.drag(find.byType(ListView).first, const Offset(0, 300));
+    await tester.pumpAndSettle();
+  }
+  if (target.evaluate().isNotEmpty) {
+    await tester.ensureVisible(target.first); // не на самом краю экрана
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     pinLock = PinLock(prefs);
     reactionUsage = ReactionUsage(prefs);
+    voicePlayer = VoicePlayerController(FakeAudioBackend());
+    voiceRecorder = FakeVoiceRecorder(
+      voice: RecordedVoice(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'audio/webm',
+        filename: 'voice.webm',
+        duration: const Duration(seconds: 3),
+        waveform: const [4, 12, 25, 12, 4],
+      ),
+    );
     authRepository = MockAuthRepository(
       confirmDelay: const Duration(seconds: 1),
     );
@@ -116,8 +144,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).last, 'привет, это тест');
+    await tester.pump(); // кнопка «микрофон» → «А?»
     await tester.tap(find.text('А?'));
-    await tester.pump();
+    // Лента дотягивается до нового сообщения анимацией — ждём её конца.
+    await tester.pumpAndSettle();
     expect(find.text('привет, это тест'), findsOneWidget);
 
     // Фокус не потерян — можно печатать следующее сообщение сразу.
@@ -288,6 +318,7 @@ void main() {
 
     // Открылся пустой диалог, отправляем первое сообщение.
     await tester.enterText(find.byType(TextField).last, 'привет, панда');
+    await tester.pump(); // кнопка «микрофон» → «А?»
     await tester.tap(find.text('А?'));
     await tester.pump();
     expect(find.text('привет, панда'), findsOneWidget);
@@ -449,6 +480,7 @@ void main() {
     expect(find.byIcon(Icons.reply), findsWidgets); // плашка ответа
 
     await tester.enterText(find.byType(TextField).last, 'ответ!');
+    await tester.pump(); // кнопка «микрофон» → «А?»
     await tester.tap(find.text('А?'));
     await tester.pump(const Duration(seconds: 2)); // демо-ответ собеседника
     await tester.pumpAndSettle();
@@ -482,10 +514,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // Закрепляем два сообщения.
+    await revealInChat(tester, find.text('Whatsup brother'));
     await tester.longPress(find.text('Whatsup brother'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Закрепить'));
     await tester.pumpAndSettle();
+    await revealInChat(tester, find.textContaining('casino'));
     await tester.longPress(find.textContaining('casino'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Закрепить'));
@@ -495,6 +529,7 @@ void main() {
     expect(find.text('+1'), findsOneWidget);
 
     // Long-press закреплённого предлагает «Открепить».
+    await revealInChat(tester, find.text('Whatsup brother'));
     await tester.longPress(find.text('Whatsup brother').first);
     await tester.pumpAndSettle();
     expect(find.text('Открепить'), findsOneWidget);
@@ -550,6 +585,51 @@ void main() {
     expect(find.text('❤️ 1'), findsNothing);
   });
 
+  testWidgets('голосовые: плеер-плашка и запись нового', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+
+    // Демо-голосовое от собеседника: длительность 00:07 и кнопка play.
+    final play = find.byIcon(Icons.play_arrow_rounded);
+    await revealInChat(tester, play);
+    expect(find.text('00:07'), findsOneWidget);
+
+    // Play → под шапкой появляется плашка с именем автора.
+    await tester.tap(play);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.pause_rounded), findsWidgets);
+    expect(find.text('Viktor Dudovich'), findsNWidgets(2)); // шапка + плашка
+
+    // Тап по плашке — пауза, крестик — закрыть плеер.
+    await tester.tap(find.text('Viktor Dudovich').last);
+    await tester.pumpAndSettle();
+    expect(voicePlayer.playing, isFalse);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(voicePlayer.currentId, isNull);
+    expect(find.text('Viktor Dudovich'), findsOneWidget);
+
+    // Запись: пустое поле → микрофон → панель записи → отправка.
+    await tester.tap(find.byIcon(Icons.mic));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.text('00:03'), findsOneWidget); // длительность новой записи
+
+    // Отмена записи ничего не отправляет.
+    await tester.tap(find.byIcon(Icons.mic));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    expect((voiceRecorder as FakeVoiceRecorder).cancelled, isTrue);
+    expect(find.text('00:03'), findsOneWidget);
+  });
+
   testWidgets('меню чата: поиск, очистка и удаление', (tester) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
@@ -571,6 +651,7 @@ void main() {
     expect(find.text('Whatsup brother'), findsNothing);
     await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
+    await revealInChat(tester, find.text('Whatsup brother'));
     expect(find.text('Whatsup brother'), findsOneWidget);
 
     // Очистка: остаётся только системная отметка.

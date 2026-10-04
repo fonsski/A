@@ -22,6 +22,8 @@ import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
+import 'package:a_messenger/media/voice_player.dart';
+import 'package:a_messenger/media/voice_recorder.dart';
 import 'package:a_messenger/data/wall_repository.dart';
 import 'package:a_messenger/screens/auth/confirm_email_screen.dart';
 import 'package:a_messenger/screens/account_security_screen.dart';
@@ -40,6 +42,8 @@ import 'package:a_messenger/screens/post_thread_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
 import 'package:a_messenger/screens/user_profile_screen.dart';
 import 'package:a_messenger/theme.dart';
+
+import 'fakes.dart';
 
 const _outDir =
     r'C:\Users\fon\AppData\Local\Temp\claude\C--Users-fon-projects-flutter-A\cf35cef7-9a57-4d19-8f8c-a404cc4cacba\scratchpad\screens';
@@ -84,6 +88,16 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     pinLock = PinLock(prefs);
     reactionUsage = ReactionUsage(prefs);
+    voicePlayer = VoicePlayerController(FakeAudioBackend());
+    voiceRecorder = FakeVoiceRecorder(
+      voice: RecordedVoice(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'audio/webm',
+        filename: 'voice.webm',
+        duration: const Duration(seconds: 3),
+        waveform: const [4, 12, 25, 12, 4],
+      ),
+    );
     authRepository = MockAuthRepository();
     chatRepository = MockChatRepository();
     wallRepository = MockWallRepository();
@@ -183,6 +197,18 @@ void main() {
     );
     await prepare(tester, const AccountSecurityScreen());
     await _capture(tester, '22_account_security');
+  });
+
+  testWidgets('chat voice', (tester) async {
+    await prepare(tester, ChatScreen(chatId: 'c1', peer: mockUsers.first));
+    await tester.pump();
+    for (var i = 0; i < 3; i++) {
+      await tester.drag(find.byType(ListView).first, const Offset(0, 200));
+      await tester.pump();
+    }
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded).first);
+    await tester.pump();
+    await _capture(tester, '25_chat_voice');
   });
 
   testWidgets('post thread', (tester) async {
