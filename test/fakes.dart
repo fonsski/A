@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
+
 import 'package:a_messenger/media/audio_backend.dart';
+import 'package:a_messenger/media/circle_camera.dart';
 import 'package:a_messenger/media/voice_recorder.dart';
 
 /// Заглушка аудио-движка: ничего не играет, но позволяет тестам
@@ -75,4 +78,39 @@ class FakeVoiceRecorder implements VoiceRecorder {
     _recording = false;
     cancelled = true;
   }
+}
+
+/// Заглушка камеры кружков: «снимает» заданное видео, без железа.
+class FakeCircleCamera implements CircleCamera {
+  FakeCircleCamera({this.result = CameraOpen.ready, this.circle});
+
+  CameraOpen result;
+  RecordedCircle? circle;
+  var recording = false;
+  var disposed = false;
+
+  @override
+  Future<CameraOpen> open() async => result;
+
+  @override
+  Widget buildPreview(BuildContext context) =>
+      const ColoredBox(color: Colors.blueGrey);
+
+  @override
+  bool get canSwitch => false;
+
+  @override
+  Future<void> switchCamera() async {}
+
+  @override
+  Future<void> startRecording() async => recording = true;
+
+  @override
+  Future<RecordedCircle?> stopRecording() async {
+    recording = false;
+    return circle;
+  }
+
+  @override
+  Future<void> dispose() async => disposed = true;
 }

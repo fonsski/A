@@ -160,7 +160,20 @@ class MockChatRepository implements ChatRepository {
         id: 'c3',
         peerId: 'u3',
         peerName: 'Trofim More',
-        messages: [msg('c3', 1, 'договорились', true)],
+        messages: [
+          Message(
+            id: 'c3-circle',
+            chatId: 'c3',
+            text: '',
+            sentAt: now.subtract(const Duration(minutes: 85)),
+            mine: false,
+            attachmentUrl: 'asset:assets/images/avatar.png',
+            attachmentKind: AttachmentKind.circle,
+            attachmentName: 'circle.mp4',
+            duration: const Duration(seconds: 12),
+          ),
+          msg('c3', 1, 'договорились', true),
+        ],
       ),
     ]);
   }

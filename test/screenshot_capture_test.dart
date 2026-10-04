@@ -22,6 +22,7 @@ import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
+import 'package:a_messenger/media/circle_camera.dart';
 import 'package:a_messenger/media/voice_player.dart';
 import 'package:a_messenger/media/voice_recorder.dart';
 import 'package:a_messenger/data/wall_repository.dart';
@@ -89,6 +90,14 @@ void main() {
     pinLock = PinLock(prefs);
     reactionUsage = ReactionUsage(prefs);
     voicePlayer = VoicePlayerController(FakeAudioBackend());
+    circleCameraFactory = () => FakeCircleCamera(
+      circle: RecordedCircle(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'video/webm',
+        filename: 'circle.webm',
+        duration: const Duration(seconds: 5),
+      ),
+    );
     voiceRecorder = FakeVoiceRecorder(
       voice: RecordedVoice(
         bytes: Uint8List.fromList([1, 2, 3]),
@@ -209,6 +218,12 @@ void main() {
     await tester.tap(find.byIcon(Icons.play_arrow_rounded).first);
     await tester.pump();
     await _capture(tester, '25_chat_voice');
+  });
+
+  testWidgets('chat circle', (tester) async {
+    await prepare(tester, ChatScreen(chatId: 'c3', peer: mockUsers.last));
+    await tester.pump();
+    await _capture(tester, '26_chat_circle');
   });
 
   testWidgets('post thread', (tester) async {
