@@ -568,4 +568,72 @@ void main() {
     await tester.pumpAndSettle();
     expect((await privacyRepository.load()).wallVisibleTo, Audience.me);
   });
+
+  testWidgets('вход и безопасность: маска почты и смена пароля', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    final settingsIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_settings.png',
+    );
+    await tester.tap(settingsIcon);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Безопасность и вход'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Безопасность и вход'));
+    await tester.pumpAndSettle();
+
+    // Почта показана в маске, целиком её нет.
+    expect(find.text('te***@a.ru'), findsOneWidget);
+    expect(find.text('test@a.ru'), findsNothing);
+
+    // Смена пароля: диалог → новый пароль работает при входе.
+    await tester.tap(find.text('Изменить').last);
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'password1');
+    await tester.enterText(fields.at(1), 'newpassword1');
+    await tester.enterText(fields.at(2), 'newpassword1');
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Пароль изменён'), findsOneWidget);
+
+    // Новый пароль работает при входе через UI.
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await authRepository.signOut();
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginScreen), findsOneWidget);
+    await tester.enterText(find.byType(TextField).at(0), 'test@a.ru');
+    await tester.enterText(find.byType(TextField).at(1), 'newpassword1');
+    await tester.tap(find.text('Войти!'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeShell), findsOneWidget);
+  });
+
+  testWidgets('десктопный вход: тёмная карточка на широком окне', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await authRepository.signOut();
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('A.Messenger © 202*'), findsOneWidget);
+    // В карточке нет логотипа: переключатель стоит сверху.
+    expect(find.text('Войти'), findsOneWidget);
+    expect(find.text('Вступить'), findsOneWidget);
+  });
 }

@@ -193,6 +193,36 @@ class SupabaseAuthRepository implements AuthRepository {
     _emit(await _load(user));
   }
 
+  @override
+  Future<void> changeEmail(String newEmail) async {
+    try {
+      await _client.auth.updateUser(sb.UserAttributes(email: newEmail.trim()));
+    } on sb.AuthException catch (e) {
+      throw AuthFailure(_ru(e));
+    }
+  }
+
+  @override
+  Future<void> changePassword({
+    required String current,
+    required String next,
+  }) async {
+    final email = _client.auth.currentUser?.email;
+    if (email == null) throw const AuthFailure('Сессия истекла — войди заново');
+    try {
+      // Повторная проверка старого пароля: украденная открытая сессия
+      // не должна позволять сменить пароль без его знания.
+      await _client.auth.signInWithPassword(email: email, password: current);
+    } on sb.AuthException {
+      throw const AuthFailure('Текущий пароль неверный');
+    }
+    try {
+      await _client.auth.updateUser(sb.UserAttributes(password: next));
+    } on sb.AuthException catch (e) {
+      throw AuthFailure(_ru(e));
+    }
+  }
+
   String _ru(sb.AuthException e) {
     return switch (e.code) {
       'invalid_credentials' => 'Неверная почта/ник или пароль',
@@ -200,6 +230,8 @@ class SupabaseAuthRepository implements AuthRepository {
       'user_already_exists' ||
       'email_exists' => 'Эта почта уже зарегистрирована',
       'weak_password' => 'Слишком простой пароль',
+      'same_password' => 'Новый пароль совпадает со старым',
+      'email_address_invalid' => 'Эта почта не подходит',
       'over_email_send_rate_limit' =>
         'Слишком часто — подожди минуту и попробуй снова',
       _ => 'Не получилось: ${e.message}',

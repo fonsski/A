@@ -88,6 +88,14 @@ abstract class AuthRepository {
 
   /// Загружает аватар (Storage) и обновляет profiles.avatar_url.
   Future<void> updateAvatar(Uint8List bytes, String mimeType);
+
+  /// Просит сменить почту. В Supabase новый адрес вступает в силу только
+  /// после подтверждения по письму, поэтому [AuthSnapshot.email] может
+  /// остаться прежним, пока ссылку не откроют.
+  Future<void> changeEmail(String newEmail);
+
+  /// Меняет пароль, сначала проверяя [current].
+  Future<void> changePassword({required String current, required String next});
 }
 
 /// Единая точка доступа; назначается в main() до runApp.

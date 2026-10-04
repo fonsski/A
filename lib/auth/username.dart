@@ -33,6 +33,17 @@ String? validateEmail(String raw) {
   return null;
 }
 
+/// «vasya_pupkin@mail.com» → «vasya_p******@mail.com»: показываем не больше
+/// половины имени (до 8 символов), остальное прячем звёздочками.
+String maskEmail(String email) {
+  final at = email.indexOf('@');
+  if (at <= 0) return email;
+  final local = email.substring(0, at);
+  final visible = ((local.length + 1) ~/ 2).clamp(1, 8);
+  final hidden = (local.length - visible).clamp(3, 64);
+  return '${local.substring(0, visible)}${'*' * hidden}${email.substring(at)}';
+}
+
 String? validatePassword(String value) {
   if (value.isEmpty) return 'Введи пароль';
   if (value.length < 8) return 'Минимум 8 символов';

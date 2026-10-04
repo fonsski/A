@@ -32,6 +32,15 @@ void main() {
     });
   });
 
+  group('maskEmail', () {
+    test('прячет часть имени звёздочками, домен оставляет', () {
+      expect(maskEmail('vasya_pupkin@mail.com'), 'vasya_******@mail.com');
+      expect(maskEmail('test@a.ru'), 'te***@a.ru');
+      expect(maskEmail('a@b.ru'), 'a***@b.ru');
+      expect(maskEmail('не-почта'), 'не-почта');
+    });
+  });
+
   group('MockAuthRepository: полный флоу регистрации', () {
     late MockAuthRepository repo;
 
@@ -92,6 +101,41 @@ void main() {
       await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
       await repo.updateAvatar(Uint8List.fromList([1, 2, 3]), 'image/png');
       expect(repo.current!.profile!.avatarUrl, startsWith('data:image/png'));
+    });
+
+    test('changePassword проверяет текущий и принимает новый', () async {
+      await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
+      await expectLater(
+        repo.changePassword(current: 'wrong', next: 'newpassword1'),
+        throwsA(isA<AuthFailure>()),
+      );
+      await repo.changePassword(current: 'password1', next: 'newpassword1');
+      await repo.signOut();
+      await expectLater(
+        repo.signIn(identifier: 'demo@a.ru', password: 'password1'),
+        throwsA(isA<AuthFailure>()),
+      );
+      await repo.signIn(identifier: 'demo@a.ru', password: 'newpassword1');
+      expect(repo.current, isNotNull);
+    });
+
+    test('changeEmail переносит аккаунт на новую почту', () async {
+      await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
+      await repo.changeEmail('Fresh@A.ru');
+      expect(repo.current!.email, 'fresh@a.ru');
+      expect(repo.current!.profile!.username, 'de.panda'); // профиль цел
+      await repo.signOut();
+      await repo.signIn(identifier: 'fresh@a.ru', password: 'password1');
+      expect(repo.current, isNotNull);
+    });
+
+    test('changeEmail на занятую почту — ошибка', () async {
+      await repo.signUp(email: 'taken@a.ru', password: 'password1');
+      await repo.signIn(identifier: 'demo@a.ru', password: 'password1');
+      await expectLater(
+        repo.changeEmail('taken@a.ru'),
+        throwsA(isA<AuthFailure>()),
+      );
     });
 
     test('updateProfile сохраняет поля, пустые строки очищают', () async {

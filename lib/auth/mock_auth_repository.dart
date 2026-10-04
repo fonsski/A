@@ -54,7 +54,10 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<void> init() async {}
 
-  static final _latency = Future<void>.delayed(Duration.zero);
+  // Геттер, а не static final: общий Future «приклеивается» к зоне, где его
+  // впервые создали (в тестах — к зоне первого теста), и в остальных зонах
+  // его продолжения не выполняются.
+  static Future<void> get _latency => Future<void>.delayed(Duration.zero);
 
   @override
   Future<void> signUp({required String email, required String password}) async {
@@ -163,6 +166,46 @@ class MockAuthRepository implements AuthRepository {
       ..link = clean(link)
       ..phone = clean(phone);
     _emit(_snapshotOf(user));
+  }
+
+  @override
+  Future<void> changeEmail(String newEmail) async {
+    final snapshot = _current;
+    if (snapshot == null) {
+      throw const AuthFailure('Сессия истекла — войди заново');
+    }
+    final key = newEmail.trim().toLowerCase();
+    if (_users.containsKey(key)) {
+      throw const AuthFailure('Эта почта уже зарегистрирована');
+    }
+    // В моке «письмо» подтверждается сразу: перекладываем аккаунт на новый ключ.
+    final old = _users.remove(snapshot.email)!;
+    final moved = _MockUser(email: key, password: old.password)
+      ..confirmed = true
+      ..username = old.username
+      ..displayName = old.displayName
+      ..bio = old.bio
+      ..link = old.link
+      ..phone = old.phone
+      ..avatarUrl = old.avatarUrl;
+    _users[key] = moved;
+    _emit(_snapshotOf(moved));
+  }
+
+  @override
+  Future<void> changePassword({
+    required String current,
+    required String next,
+  }) async {
+    final snapshot = _current;
+    if (snapshot == null) {
+      throw const AuthFailure('Сессия истекла — войди заново');
+    }
+    final user = _users[snapshot.email]!;
+    if (user.password != current) {
+      throw const AuthFailure('Текущий пароль неверный');
+    }
+    user.password = next;
   }
 
   @override

@@ -9,6 +9,7 @@ import '../notifications/web_notifier_stub.dart'
     as notifier;
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'account_security_screen.dart';
 import 'privacy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -107,7 +108,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const ASectionTitle('Аккаунт'),
+              const ASectionTitle('Аккаунт и безопасность'),
+              _SettingsRow(
+                'Безопасность и вход',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AccountSecurityScreen(),
+                  ),
+                ),
+              ),
               _SettingsRow('Выйти', onTap: () => authRepository.signOut()),
             ],
           ),

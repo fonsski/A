@@ -92,16 +92,14 @@ class _LoginScreenState extends State<LoginScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(21, 20, 21, 16),
           children: [
-            const SizedBox(height: 32),
-            const AuthLogo(),
-            const SizedBox(height: 48),
+            const AuthTop(),
             AuthToggle(
               signUpSelected: false,
               onChanged: (signUp) {
                 if (signUp) widget.onSignUpTap();
               },
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: kAuthToggleToForm),
             AuthField(
               label: 'Email или имя пользователя',
               hint: '@gnida or gnida@tvar.ru',
@@ -109,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               errorText: _identifierError,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: kAuthFieldGap),
             AuthField(
               label: 'Пароль',
               hint: 'пароль введи сюда',
@@ -117,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
               obscure: true,
               errorText: _passwordError,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: kAuthFormToButton),
             AuthButton(label: 'Войти!', onPressed: _submit, busy: _busy),
             const SizedBox(height: 8),
             AuthLink(label: 'Восcтановить доступ?', onTap: _resetPassword),
