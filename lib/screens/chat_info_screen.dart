@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/chat_repository.dart';
 import '../data/models.dart';
+import '../media/voice_player.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/online_status.dart';
@@ -363,11 +364,13 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
           case _MediaTab.video:
           case _MediaTab.files:
-            final kind = _tab == _MediaTab.video
-                ? AttachmentKind.video
-                : AttachmentKind.file;
+            final isVideoTab = _tab == _MediaTab.video;
+            // Кружки лежат во вкладке «Видео», голосовые — в «Файлах».
+            final kinds = isVideoTab
+                ? const [AttachmentKind.video, AttachmentKind.circle]
+                : const [AttachmentKind.file, AttachmentKind.voice];
             final items = messages
-                .where((m) => m.attachmentKind == kind)
+                .where((m) => kinds.contains(m.attachmentKind))
                 .toList();
             if (items.isEmpty) return empty();
             return ListView.separated(
@@ -376,8 +379,20 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, i) {
                 final m = items[i];
+                final isVoice = m.attachmentKind == AttachmentKind.voice;
+                final isCircle = m.attachmentKind == AttachmentKind.circle;
+                final label =
+                    m.attachmentName ??
+                    switch (m.attachmentKind) {
+                      AttachmentKind.voice => 'Голосовое сообщение',
+                      AttachmentKind.circle => 'Видеосообщение',
+                      AttachmentKind.video => 'Видео',
+                      _ => 'Файл',
+                    };
                 return GestureDetector(
-                  onTap: () => _open(m.attachmentUrl!),
+                  onTap: () => isVoice
+                      ? voicePlayer.toggle(m, title: widget.peer.displayName)
+                      : _open(m.attachmentUrl!),
                   child: Container(
                     height: 56,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -385,7 +400,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          kind == AttachmentKind.video
+                          isVoice
+                              ? Icons.mic
+                              : isVideoTab || isCircle
                               ? Icons.play_circle_outline
                               : Icons.insert_drive_file,
                           color: colors.accent,
@@ -393,10 +410,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            m.attachmentName ??
-                                (kind == AttachmentKind.video
-                                    ? 'Видео'
-                                    : 'Файл'),
+                            m.duration == null
+                                ? label
+                                : '$label · ${formatDuration(m.duration!)}',
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: colors.textPrimary,

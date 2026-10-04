@@ -19,8 +19,9 @@ abstract class ChatRepository {
   /// «Удалить у себя» — скрывает сообщение только для меня.
   Future<void> hideMessageForMe(String chatId, String messageId);
 
-  /// Отправляет вложение (Storage, бакет chat-media): фото, видео или файл,
-  /// опционально с подписью.
+  /// Отправляет вложение (Storage, бакет chat-media): фото, видео, файл,
+  /// голосовое или кружок; опционально с подписью. Для голосовых и кружков
+  /// передаются [duration], для голосовых ещё и [waveform] (0..31).
   Future<void> sendAttachment(
     String chatId,
     Uint8List bytes,
@@ -28,6 +29,8 @@ abstract class ChatRepository {
     String filename,
     AttachmentKind kind, {
     String caption = '',
+    Duration? duration,
+    List<int>? waveform,
   });
 
   /// Сбрасывает счётчик непрочитанных.

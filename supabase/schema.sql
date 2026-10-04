@@ -218,7 +218,9 @@ create table if not exists public.messages (
   author_id       uuid not null references public.profiles (id),
   body            text not null,
   image_url       text,   -- URL вложения (имя историческое)
-  attachment_type text check (attachment_type in ('image', 'video', 'file')),
+  attachment_type text check (attachment_type in ('image', 'video', 'file', 'voice', 'circle')),
+  duration_ms     int check (duration_ms >= 0),
+  waveform        jsonb,  -- массив чисел 0..31 для голосовых
   attachment_name text,
   -- 'user' — обычное, 'clear'/'pin' — системные события.
   kind            text not null default 'user'

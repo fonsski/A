@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../media/wav_tone.dart';
+import '../../media/waveform.dart';
 import '../chat_repository.dart';
 import '../models.dart';
 import 'mock_directory.dart';
@@ -110,6 +112,20 @@ class MockChatRepository implements ChatRepository {
             text: 'глянь доку https://flutter.dev и ещё https://supabase.com',
             sentAt: now.subtract(const Duration(minutes: 65)),
             mine: true,
+          ),
+          Message(
+            id: 'c1-voice',
+            chatId: 'c1',
+            text: '',
+            sentAt: now.subtract(const Duration(minutes: 63, seconds: 30)),
+            mine: false,
+            attachmentUrl:
+                'data:audio/wav;base64,'
+                '${base64Encode(generateDemoWav(const Duration(seconds: 7)))}',
+            attachmentKind: AttachmentKind.voice,
+            attachmentName: 'voice.wav',
+            duration: const Duration(seconds: 7),
+            waveform: demoWaveform(7),
           ),
           Message(
             id: 'c1-5',
@@ -235,6 +251,8 @@ class MockChatRepository implements ChatRepository {
     String filename,
     AttachmentKind kind, {
     String caption = '',
+    Duration? duration,
+    List<int>? waveform,
   }) async {
     _chat(chatId).messages.add(
       Message(
@@ -246,6 +264,8 @@ class MockChatRepository implements ChatRepository {
         attachmentUrl: 'data:$mimeType;base64,${base64Encode(bytes)}',
         attachmentKind: kind,
         attachmentName: filename,
+        duration: duration,
+        waveform: waveform,
       ),
     );
     _notify(chatId);
