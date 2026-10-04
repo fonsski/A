@@ -206,7 +206,11 @@ void main() {
       final messages = await repo.watchMessages('c3').first;
       expect(messages.any((m) => m.id == 'c3-1'), isFalse);
       final chats = await repo.watchChats().first;
-      expect(chats.firstWhere((c) => c.id == 'c3').lastText, '');
+      // Скрытое «договорились» не в превью — остался демо-кружок собеседника.
+      expect(
+        chats.firstWhere((c) => c.id == 'c3').lastText,
+        attachmentPreview(AttachmentKind.circle),
+      );
     });
 
     test(
