@@ -168,6 +168,10 @@ final _linkRe = RegExp(r'https?://[^\s<>"]+');
 List<String> extractLinks(String text) =>
     _linkRe.allMatches(text).map((m) => m.group(0)!).toList();
 
+/// Реакция на пост или комментарий: «Ага!» (А) или дизлайк (∀).
+/// Пользователь может поставить только одну из двух.
+enum PostReaction { aga, dislike }
+
 class Comment {
   const Comment({
     required this.id,
@@ -175,6 +179,12 @@ class Comment {
     required this.text,
     this.imageAsset,
     this.authorAvatarUrl,
+    this.parentId,
+    this.createdAt,
+    this.agaCount = 0,
+    this.dislikeCount = 0,
+    this.myReaction,
+    this.canDelete = false,
   });
 
   final String id;
@@ -182,6 +192,16 @@ class Comment {
   final String text;
   final String? imageAsset;
   final String? authorAvatarUrl;
+
+  /// id комментария, на который это — ответ (null — комментарий к посту).
+  final String? parentId;
+  final DateTime? createdAt;
+  final int agaCount;
+  final int dislikeCount;
+  final PostReaction? myReaction;
+
+  /// Автор комментария или владелец стены.
+  final bool canDelete;
 }
 
 class Post {
@@ -193,10 +213,14 @@ class Post {
     required this.text,
     required this.createdAt,
     required this.agaCount,
-    required this.myAga,
     required this.mine,
+    this.dislikeCount = 0,
+    this.myReaction,
     this.comments = const <Comment>[],
     this.authorAvatarUrl,
+    this.canDelete = false,
+    this.repostOfId,
+    this.original,
   });
 
   final String id;
@@ -206,10 +230,47 @@ class Post {
   final String text;
   final DateTime createdAt;
   final int agaCount; // реакции «Ага!»
-  final bool myAga;
+  final int dislikeCount; // дизлайки (∀)
+  final PostReaction? myReaction;
   final bool mine;
   final List<Comment> comments;
   final String? authorAvatarUrl;
+
+  /// Я автор записи или владелец стены, на которой она лежит.
+  final bool canDelete;
+
+  /// Если запись — репост: id оригинала и сам оригинал. Оригинал null,
+  /// когда он удалён или скрыт приватностью («запись недоступна»).
+  final String? repostOfId;
+  final Post? original;
+
+  bool get myAga => myReaction == PostReaction.aga;
+  bool get myDislike => myReaction == PostReaction.dislike;
+  bool get isRepost => repostOfId != null;
+}
+
+/// Ветка комментариев: комментарий и его ответы, вложенные по уровням.
+class CommentNode {
+  CommentNode(this.comment);
+
+  final Comment comment;
+  final replies = <CommentNode>[];
+
+  /// Сколько комментариев в этой ветке, включая корень.
+  int get size => 1 + replies.fold(0, (sum, r) => sum + r.size);
+}
+
+/// Собирает плоский список комментариев в деревья по [Comment.parentId].
+/// Порядок — как во входном списке (старые первыми); ответы на
+/// пропавшего родителя поднимаются на верхний уровень.
+List<CommentNode> buildCommentTree(List<Comment> comments) {
+  final nodes = {for (final c in comments) c.id: CommentNode(c)};
+  final roots = <CommentNode>[];
+  for (final c in comments) {
+    final parent = c.parentId == null ? null : nodes[c.parentId];
+    (parent?.replies ?? roots).add(nodes[c.id]!);
+  }
+  return roots;
 }
 
 String formatTime(DateTime? time) {

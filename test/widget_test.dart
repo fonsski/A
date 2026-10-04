@@ -215,6 +215,60 @@ void main() {
     expect(find.text('Мой первый пост!'), findsOneWidget);
   });
 
+  testWidgets('стенка: дизлайк, репост и ветка комментариев', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    final wallIcon = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          w.image is AssetImage &&
+          (w.image as AssetImage).assetName == 'assets/images/nav_wall.png',
+    );
+    await tester.tap(wallIcon);
+    await tester.pumpAndSettle();
+
+    // Лента «А?»: пост Trofim с комментарием и ответом.
+    await tester.tap(find.text('А?').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Вся ветка (2)'), findsOneWidget);
+
+    // Репост через значок-стрелку → диалог → «Поделиться».
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (w) =>
+                w is Image &&
+                w.image is AssetImage &&
+                (w.image as AssetImage).assetName ==
+                    'assets/images/react_2.png',
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Репост на твою стену'), findsOneWidget);
+    await tester.tap(find.text('Поделиться'));
+    await tester.pumpAndSettle();
+    expect(find.text('Запись добавлена на твою стену'), findsOneWidget);
+
+    // Ветка: открываем, отвечаем на комментарий.
+    await tester.ensureVisible(find.text('Вся ветка (2)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Вся ветка (2)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Запись'), findsOneWidget);
+    expect(find.text('Скинемся всем миром'), findsOneWidget); // ответ на cm1
+    await tester.tap(find.text('Ответить').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Ответ: '), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, 'мой ответ в ветке');
+    // Отправка клавишей Enter: кнопку «А?» закрывает снекбар репоста.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.text('мой ответ в ветке'), findsOneWidget);
+    expect(find.textContaining('Ответ: '), findsNothing);
+  });
+
   testWidgets('поиск человека → новый чат → сообщение', (tester) async {
     await tester.pumpWidget(const AMessengerApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));

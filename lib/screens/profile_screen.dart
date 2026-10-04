@@ -9,7 +9,7 @@ import '../widgets/common.dart';
 import '../widgets/post_card.dart';
 import 'friends_screen.dart';
 import 'profile_editor_screen.dart';
-import 'wall_screen.dart' show showCommentSheet;
+import 'post_thread_screen.dart';
 
 String _friendsLabel(int n) {
   if (n % 10 == 1 && n % 100 != 11) return '$n друг';
@@ -172,8 +172,8 @@ class ProfileScreen extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, i) => PostCard(
                   post: posts[i],
-                  onAga: () => wallRepository.toggleAga(posts[i].id),
-                  onComment: () => showCommentSheet(context, posts[i].id),
+                  onOpenThread: () => openPostThread(context, posts[i].id),
+                  onOpenOriginal: (id) => openPostThread(context, id),
                 ),
               );
             },
