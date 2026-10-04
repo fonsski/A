@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/post_card.dart';
 import 'new_post_screen.dart';
+import 'post_thread_screen.dart';
 
 class WallScreen extends StatefulWidget {
   const WallScreen({super.key});
@@ -115,8 +116,8 @@ class _WallScreenState extends State<WallScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, i) => PostCard(
                       post: posts[i],
-                      onAga: () => wallRepository.toggleAga(posts[i].id),
-                      onComment: () => showCommentSheet(context, posts[i].id),
+                      onOpenThread: () => openPostThread(context, posts[i].id),
+                      onOpenOriginal: (id) => openPostThread(context, id),
                     ),
                   );
                 },
@@ -127,54 +128,6 @@ class _WallScreenState extends State<WallScreen> {
       ),
     );
   }
-}
-
-/// Нижняя шторка «добавить комментарий».
-Future<void> showCommentSheet(BuildContext context, String postId) {
-  final controller = TextEditingController();
-  final colors = context.colors;
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: colors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (sheetContext) => Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        16 + MediaQuery.viewInsetsOf(sheetContext).bottom,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              autofocus: true,
-              style: TextStyle(color: colors.textPrimary, fontSize: 16),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: 'Комментарий...',
-                hintStyle: TextStyle(color: colors.textSecondary, fontSize: 16),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send, color: colors.accent),
-            onPressed: () {
-              final text = controller.text.trim();
-              if (text.isNotEmpty) {
-                wallRepository.addComment(postId, text);
-              }
-              Navigator.of(sheetContext).pop();
-            },
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _WallTab extends StatelessWidget {

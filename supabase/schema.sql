@@ -433,8 +433,11 @@ create table if not exists public.posts (
   id            uuid primary key default gen_random_uuid(),
   wall_owner_id uuid not null references public.profiles (id) on delete cascade,
   author_id     uuid not null references public.profiles (id),
-  body          text not null check (length(body) between 1 and 10000),
-  created_at    timestamptz not null default now()
+  body          text not null,
+  repost_of     uuid references public.posts (id) on delete set null,
+  created_at    timestamptz not null default now(),
+  constraint posts_body_check check (
+    length(body) <= 10000 and (repost_of is not null or length(body) >= 1))
 );
 create index if not exists posts_wall_idx on public.posts (wall_owner_id, created_at desc);
 
@@ -444,20 +447,31 @@ create table if not exists public.comments (
   author_id  uuid not null references public.profiles (id),
   body       text not null check (length(body) between 1 and 4000),
   image_url  text,
+  parent_id  uuid references public.comments (id) on delete cascade,
   created_at timestamptz not null default now()
 );
+create index if not exists comments_parent_idx on public.comments (parent_id);
 
 create table if not exists public.reactions (
   post_id    uuid not null references public.posts (id) on delete cascade,
   user_id    uuid not null references public.profiles (id) on delete cascade,
-  kind       text not null default 'aga',
+  kind       text not null default 'aga' check (kind in ('aga', 'dislike')),
   created_at timestamptz not null default now(),
-  primary key (post_id, user_id)   -- одна реакция «Ага!» на пользователя
+  primary key (post_id, user_id)   -- одна реакция («Ага!» или «∀») на пользователя
+);
+
+create table if not exists public.comment_reactions (
+  comment_id uuid not null references public.comments (id) on delete cascade,
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  kind       text not null default 'aga' check (kind in ('aga', 'dislike')),
+  created_at timestamptz not null default now(),
+  primary key (comment_id, user_id)
 );
 
 alter table public.posts enable row level security;
 alter table public.comments enable row level security;
 alter table public.reactions enable row level security;
+alter table public.comment_reactions enable row level security;
 
 -- Правило приватности читаем через security definer — RLS privacy_settings
 -- отдаёт только свою строку, прямой подзапрос вернул бы NULL (fix_007).
@@ -498,6 +512,18 @@ create policy comments_write on public.comments for insert with check (
                     coalesce(public.wall_rule(p.wall_owner_id, 'comments'),
                              'all'))));
 
+create policy comments_delete on public.comments for delete using (
+  author_id = auth.uid()
+  or exists (select 1 from public.posts p
+             where p.id = post_id and p.wall_owner_id = auth.uid()));
+
+create policy comment_reactions_read on public.comment_reactions
+  for select using (
+    exists (select 1 from public.comments c where c.id = comment_id));
+
+create policy comment_reactions_own on public.comment_reactions
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 create policy reactions_read on public.reactions for select using (
   exists (select 1 from public.posts p where p.id = post_id));
 
@@ -513,7 +539,7 @@ language sql stable security invoker as $$
   with my_likes as (
     select p.* from public.posts p
     join public.reactions r on r.post_id = p.id
-    where r.user_id = auth.uid()
+    where r.user_id = auth.uid() and r.kind = 'aga'
   ),
   corpus as (
     select left(coalesce(string_agg(body, ' '), ''), 4000) as text
@@ -527,7 +553,7 @@ language sql stable security invoker as $$
       + 2.0 * (public.are_friends(p.author_id, auth.uid()))::int
       + 1.5 * (p.author_id in (select author_id from liked_authors))::int
       + 0.5 * ln(1 + (select count(*) from public.reactions r2
-                       where r2.post_id = p.id))
+                       where r2.post_id = p.id and r2.kind = 'aga'))
       + 2.0 * similarity(left(p.body, 1000), (select text from corpus))
     )::real as score
   from public.posts p
@@ -579,4 +605,4 @@ create policy chat_media_insert on storage.objects
 alter publication supabase_realtime
   add table public.messages, public.posts, public.comments, public.reactions,
             public.blacklist, public.chats, public.chat_pins,
-            public.message_reactions;
+            public.message_reactions, public.comment_reactions;

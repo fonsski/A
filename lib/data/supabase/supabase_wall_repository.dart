@@ -10,7 +10,12 @@ import '../wall_repository.dart';
 class SupabaseWallRepository implements WallRepository {
   SupabaseWallRepository() : _client = Supabase.instance.client {
     final channel = _client.channel('wall-feed');
-    for (final table in ['posts', 'comments', 'reactions']) {
+    for (final table in [
+      'posts',
+      'comments',
+      'reactions',
+      'comment_reactions',
+    ]) {
       channel.onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
@@ -53,21 +58,44 @@ class SupabaseWallRepository implements WallRepository {
     final rows = await _client
         .from('posts')
         .select('''
-          id, wall_owner_id, author_id, body, created_at,
+          id, wall_owner_id, author_id, body, repost_of, created_at,
           author:profiles!posts_author_id_fkey(username, display_name, avatar_url),
-          comments(id, body, image_url, created_at,
-                   author:profiles!comments_author_id_fkey(username, display_name, avatar_url)),
-          reactions(user_id)
+          comments(id, body, image_url, parent_id, author_id, created_at,
+                   author:profiles!comments_author_id_fkey(username, display_name, avatar_url),
+                   comment_reactions(user_id, kind)),
+          reactions(user_id, kind)
         ''')
         .order('created_at', ascending: false);
 
-    _last = [for (final r in rows) _toPost(r)];
+    // Оригиналы репостов берём из тех же строк: что не пришло — для меня
+    // скрыто приватностью (RLS), и такая запись покажется «недоступной».
+    final byId = {for (final r in rows) r['id'] as String: r};
+    _last = [for (final r in rows) _toPost(r, byId)];
     _controller.add(_last!);
   }
 
-  Post _toPost(Map<String, dynamic> r) {
+  /// (сколько «Ага!», сколько дизлайков, моя реакция) по строкам реакций.
+  (int, int, PostReaction?) _tally(List<dynamic> reactions) {
+    var aga = 0;
+    var dislike = 0;
+    PostReaction? mine;
+    for (final x in reactions.cast<Map<String, dynamic>>()) {
+      final kind = x['kind'] == 'dislike'
+          ? PostReaction.dislike
+          : PostReaction.aga;
+      kind == PostReaction.aga ? aga++ : dislike++;
+      if (x['user_id'] == _uid) mine = kind;
+    }
+    return (aga, dislike, mine);
+  }
+
+  Post _toPost(
+    Map<String, dynamic> r,
+    Map<String, Map<String, dynamic>> byId, {
+    bool withOriginal = true,
+  }) {
     final author = (r['author'] ?? const {}) as Map<String, dynamic>;
-    final reactions = (r['reactions'] as List?) ?? const [];
+    final (aga, dislike, mine) = _tally((r['reactions'] as List?) ?? const []);
     final comments =
         ((r['comments'] as List?) ?? const []).cast<Map<String, dynamic>>()
           ..sort(
@@ -75,6 +103,9 @@ class SupabaseWallRepository implements WallRepository {
               b['created_at'] as String,
             ),
           );
+    final repostOfId = r['repost_of'] as String?;
+    final originalRow = repostOfId == null ? null : byId[repostOfId];
+    final isOwner = r['wall_owner_id'] == _uid;
     return Post(
       id: r['id'] as String,
       ownerId: r['wall_owner_id'] as String,
@@ -83,25 +114,38 @@ class SupabaseWallRepository implements WallRepository {
       authorUsername: (author['username'] ?? '') as String,
       text: r['body'] as String,
       createdAt: DateTime.parse(r['created_at'] as String),
-      agaCount: reactions.length,
-      myAga: reactions.any((x) => x['user_id'] == _uid),
-      mine: r['wall_owner_id'] == _uid,
+      agaCount: aga,
+      dislikeCount: dislike,
+      myReaction: mine,
+      mine: isOwner,
+      canDelete: isOwner || r['author_id'] == _uid,
       authorAvatarUrl: author['avatar_url'] as String?,
+      repostOfId: repostOfId,
+      original: withOriginal && originalRow != null
+          ? _toPost(originalRow, byId, withOriginal: false)
+          : null,
       comments: [
         for (final c in comments)
-          Comment(
-            id: c['id'] as String,
-            authorName:
-                ((c['author'] ?? const {})
-                        as Map<String, dynamic>)['display_name']
-                    as String? ??
-                'Кто-то',
-            text: c['body'] as String,
-            authorAvatarUrl:
-                ((c['author'] ?? const {})
-                        as Map<String, dynamic>)['avatar_url']
-                    as String?,
-          ),
+          () {
+            final cAuthor = (c['author'] ?? const {}) as Map<String, dynamic>;
+            final (cAga, cDislike, cMine) = _tally(
+              (c['comment_reactions'] as List?) ?? const [],
+            );
+            return Comment(
+              id: c['id'] as String,
+              authorName:
+                  (cAuthor['display_name'] ?? cAuthor['username'] ?? 'Кто-то')
+                      as String,
+              text: c['body'] as String,
+              authorAvatarUrl: cAuthor['avatar_url'] as String?,
+              parentId: c['parent_id'] as String?,
+              createdAt: DateTime.parse(c['created_at'] as String),
+              agaCount: cAga,
+              dislikeCount: cDislike,
+              myReaction: cMine,
+              canDelete: isOwner || c['author_id'] == _uid,
+            );
+          }(),
       ],
     );
   }
@@ -114,6 +158,12 @@ class SupabaseWallRepository implements WallRepository {
     });
   }
 
+  Stream<List<Post>> _all() async* {
+    if (_last != null) yield _last!;
+    unawaited(_refresh());
+    yield* _controller.stream;
+  }
+
   @override
   Stream<List<Post>> watchFeed() async* {
     if (_last != null) yield _rankedFeed(_last!);
@@ -122,28 +172,16 @@ class SupabaseWallRepository implements WallRepository {
   }
 
   @override
-  Stream<List<Post>> watchMine() {
-    Stream<List<Post>> source() async* {
-      if (_last != null) yield _last!;
-      unawaited(_refresh());
-      yield* _controller.stream;
-    }
-
-    return source().map((posts) => posts.where((p) => p.mine).toList());
-  }
+  Stream<List<Post>> watchMine() =>
+      _all().map((posts) => posts.where((p) => p.mine).toList());
 
   @override
-  Stream<List<Post>> watchWallOf(String userId) {
-    Stream<List<Post>> source() async* {
-      if (_last != null) yield _last!;
-      unawaited(_refresh());
-      yield* _controller.stream;
-    }
+  Stream<List<Post>> watchWallOf(String userId) =>
+      _all().map((posts) => posts.where((p) => p.ownerId == userId).toList());
 
-    return source().map(
-      (posts) => posts.where((p) => p.ownerId == userId).toList(),
-    );
-  }
+  @override
+  Stream<Post?> watchPost(String postId) =>
+      _all().map((posts) => posts.where((p) => p.id == postId).firstOrNull);
 
   @override
   Future<void> createPost(String text) async {
@@ -155,35 +193,99 @@ class SupabaseWallRepository implements WallRepository {
     await _refresh();
   }
 
-  @override
-  Future<void> toggleAga(String postId) async {
-    final mine = _last
+  Future<void> _setPostReaction(String postId, PostReaction kind) async {
+    final current = _last
         ?.where((p) => p.id == postId)
-        .map((p) => p.myAga)
+        .map((p) => p.myReaction)
         .firstOrNull;
-    if (mine == true) {
+    if (current == kind) {
       await _client
           .from('reactions')
           .delete()
           .eq('post_id', postId)
           .eq('user_id', _uid);
     } else {
+      // upsert по первичному ключу (post_id, user_id) заменяет прежний вид.
       await _client.from('reactions').upsert({
         'post_id': postId,
         'user_id': _uid,
-        'kind': 'aga',
+        'kind': kind.name,
       });
     }
     await _refresh();
   }
 
   @override
-  Future<void> addComment(String postId, String text) async {
+  Future<void> toggleAga(String postId) =>
+      _setPostReaction(postId, PostReaction.aga);
+
+  @override
+  Future<void> toggleDislike(String postId) =>
+      _setPostReaction(postId, PostReaction.dislike);
+
+  @override
+  Future<void> repost(String postId, {String comment = ''}) async {
+    // Репост репоста ведёт к исходной записи, а не к цепочке.
+    final target = _last?.where((p) => p.id == postId).firstOrNull;
+    await _client.from('posts').insert({
+      'wall_owner_id': _uid,
+      'author_id': _uid,
+      'body': comment.trim(),
+      'repost_of': target?.repostOfId ?? postId,
+    });
+    await _refresh();
+  }
+
+  @override
+  Future<void> deletePost(String postId) async {
+    await _client.from('posts').delete().eq('id', postId);
+    await _refresh();
+  }
+
+  @override
+  Future<void> addComment(
+    String postId,
+    String text, {
+    String? parentId,
+  }) async {
     await _client.from('comments').insert({
       'post_id': postId,
       'author_id': _uid,
       'body': text,
+      'parent_id': ?parentId,
     });
+    await _refresh();
+  }
+
+  @override
+  Future<void> toggleCommentReaction(
+    String commentId,
+    PostReaction kind,
+  ) async {
+    final current = _last
+        ?.expand((p) => p.comments)
+        .where((c) => c.id == commentId)
+        .map((c) => c.myReaction)
+        .firstOrNull;
+    if (current == kind) {
+      await _client
+          .from('comment_reactions')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', _uid);
+    } else {
+      await _client.from('comment_reactions').upsert({
+        'comment_id': commentId,
+        'user_id': _uid,
+        'kind': kind.name,
+      });
+    }
+    await _refresh();
+  }
+
+  @override
+  Future<void> deleteComment(String commentId) async {
+    await _client.from('comments').delete().eq('id', commentId);
     await _refresh();
   }
 }

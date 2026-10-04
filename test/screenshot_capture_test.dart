@@ -36,6 +36,7 @@ import 'package:a_messenger/screens/home_shell.dart';
 import 'package:a_messenger/screens/new_chat_screen.dart';
 import 'package:a_messenger/screens/new_post_screen.dart';
 import 'package:a_messenger/screens/privacy_screen.dart';
+import 'package:a_messenger/screens/post_thread_screen.dart';
 import 'package:a_messenger/screens/profile_editor_screen.dart';
 import 'package:a_messenger/screens/user_profile_screen.dart';
 import 'package:a_messenger/theme.dart';
@@ -182,6 +183,15 @@ void main() {
     );
     await prepare(tester, const AccountSecurityScreen());
     await _capture(tester, '22_account_security');
+  });
+
+  testWidgets('post thread', (tester) async {
+    await tester.runAsync(
+      () =>
+          authRepository.signIn(identifier: 'demo@a.ru', password: 'password1'),
+    );
+    await prepare(tester, const PostThreadScreen(postId: 'p1'));
+    await _capture(tester, '24_post_thread');
   });
 
   testWidgets('desktop login', (tester) async {
