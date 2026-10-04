@@ -22,6 +22,7 @@ import 'data/supabase/supabase_privacy_repository.dart';
 import 'data/supabase/supabase_wall_repository.dart';
 import 'data/wall_repository.dart';
 import 'media/audio_backend.dart';
+import 'media/circle_camera.dart';
 import 'media/voice_player.dart';
 import 'media/voice_recorder.dart';
 import 'notifications/notification_service.dart';
@@ -52,6 +53,7 @@ Future<void> main() async {
   reactionUsage = ReactionUsage(prefs);
   voicePlayer = VoicePlayerController(AudioplayersBackend());
   voiceRecorder = RecordPackageVoiceRecorder();
+  circleCameraFactory = CameraPackageCircleCamera.new;
   if (AppConfig.useSupabase) {
     debugPrint('А?: Supabase.initialize starting...');
     await Supabase.initialize(

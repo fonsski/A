@@ -15,6 +15,7 @@ import '../media/voice_recorder.dart';
 import '../notifications/notification_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/circle_widgets.dart';
 import '../widgets/online_status.dart';
 import '../widgets/voice_widgets.dart';
 import 'chat_info_screen.dart';
@@ -151,6 +152,27 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     } catch (e) {
       _toast('Голосовое не отправилось: $e');
+    }
+  }
+
+  /// Диалог записи видеокружка → отправка.
+  Future<void> _recordCircle() async {
+    await voicePlayer.stop();
+    if (!mounted) return;
+    final circle = await showCircleRecorder(context);
+    if (circle == null || !mounted) return;
+    _stickToBottom = true;
+    try {
+      await chatRepository.sendAttachment(
+        widget.chatId,
+        circle.bytes,
+        circle.mimeType,
+        circle.filename,
+        AttachmentKind.circle,
+        duration: circle.duration,
+      );
+    } catch (e) {
+      _toast('Видеосообщение не отправилось: $e');
     }
   }
 
@@ -948,6 +970,22 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 8),
+          if (!hasText) ...[
+            GestureDetector(
+              onTap: _recordCircle,
+              child: Tooltip(
+                message: 'Видеосообщение',
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: pillDecoration(colors.surface),
+                  child: Icon(Icons.videocam_outlined, color: colors.accent),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           GestureDetector(
             onTap: hasText ? _send : _startVoice,
             child: Container(
@@ -1232,7 +1270,7 @@ class _Attachment extends StatelessWidget {
           ),
         );
       case AttachmentKind.circle:
-        return _AttachmentTile(message: message, isVideo: true);
+        return CircleMessageView(message: message);
     }
   }
 }
@@ -1473,6 +1511,27 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (message.attachmentKind == AttachmentKind.circle) {
+      // Кружок живёт без пузыря: круг и две плашки под ним (кадр Chat).
+      return Align(
+        alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: message.mine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              CircleMessageView(message: message),
+              if (reactions.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                _reactionChips(colors),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
     return Align(
       alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(

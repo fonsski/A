@@ -15,6 +15,7 @@ import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
+import 'package:a_messenger/media/circle_camera.dart';
 import 'package:a_messenger/media/voice_player.dart';
 import 'package:a_messenger/media/voice_recorder.dart';
 import 'package:a_messenger/data/wall_repository.dart';
@@ -52,6 +53,14 @@ void main() {
     pinLock = PinLock(prefs);
     reactionUsage = ReactionUsage(prefs);
     voicePlayer = VoicePlayerController(FakeAudioBackend());
+    circleCameraFactory = () => FakeCircleCamera(
+      circle: RecordedCircle(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'video/webm',
+        filename: 'circle.webm',
+        duration: const Duration(seconds: 5),
+      ),
+    );
     voiceRecorder = FakeVoiceRecorder(
       voice: RecordedVoice(
         bytes: Uint8List.fromList([1, 2, 3]),
@@ -628,6 +637,48 @@ void main() {
     await tester.pumpAndSettle();
     expect((voiceRecorder as FakeVoiceRecorder).cancelled, isTrue);
     expect(find.text('00:03'), findsOneWidget);
+  });
+
+  testWidgets('видеокружки: запись, отправка и отмена', (tester) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Trofim More'));
+    await tester.pumpAndSettle();
+
+    // Демо-кружок от собеседника: круг с длительностью 00:12.
+    expect(find.text('00:12'), findsOneWidget);
+
+    // Камера → диалог записи → круг-кнопка: старт, повтор — стоп и отправка.
+    await tester.tap(find.byIcon(Icons.videocam_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Видеосообщение'), findsOneWidget);
+    expect(find.text('Нажми круг, чтобы начать запись'), findsOneWidget);
+    await tester.tap(find.byType(AnimatedContainer));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Нажми ещё раз — отправим'), findsOneWidget);
+    await tester.tap(find.byType(AnimatedContainer));
+    await tester.pumpAndSettle();
+    expect(find.text('Видеосообщение'), findsNothing); // диалог закрылся
+    expect(find.text('00:05'), findsOneWidget); // длительность нового кружка
+
+    // Отмена не отправляет ничего.
+    await tester.tap(find.byIcon(Icons.videocam_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('Видеосообщение'), findsNothing);
+    expect(find.text('00:05'), findsOneWidget);
+
+    // Нет доступа к камере — понятное сообщение, запись не стартует.
+    final previous = circleCameraFactory;
+    circleCameraFactory = () => FakeCircleCamera(result: CameraOpen.denied);
+    await tester.tap(find.byIcon(Icons.videocam_outlined));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Нет доступа к камере'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    circleCameraFactory = previous;
   });
 
   testWidgets('меню чата: поиск, очистка и удаление', (tester) async {
