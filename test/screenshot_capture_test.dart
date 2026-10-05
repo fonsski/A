@@ -22,6 +22,10 @@ import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
+import 'package:a_messenger/calls/call_engine.dart';
+import 'package:a_messenger/calls/call_service.dart';
+import 'package:a_messenger/calls/call_signaling.dart';
+import 'package:a_messenger/data/models.dart' show UserSummary;
 import 'package:a_messenger/media/circle_camera.dart';
 import 'package:a_messenger/media/voice_player.dart';
 import 'package:a_messenger/media/voice_recorder.dart';
@@ -32,6 +36,7 @@ import 'package:a_messenger/screens/auth/auth_desktop_frame.dart';
 import 'package:a_messenger/screens/auth/login_screen.dart';
 import 'package:a_messenger/screens/auth/pick_username_screen.dart';
 import 'package:a_messenger/screens/auth/signup_screen.dart';
+import 'package:a_messenger/screens/call_screen.dart';
 import 'package:a_messenger/screens/chat_info_screen.dart';
 import 'package:a_messenger/screens/chat_screen.dart';
 import 'package:a_messenger/screens/friends_screen.dart';
@@ -90,6 +95,12 @@ void main() {
     pinLock = PinLock(prefs);
     reactionUsage = ReactionUsage(prefs);
     voicePlayer = VoicePlayerController(FakeAudioBackend());
+    callService = CallService(
+      signaling: DemoCallSignaling(),
+      engineFactory: MockCallEngine.new,
+      self: () =>
+          const UserSummary(id: 'me', username: 'me', displayName: 'Me'),
+    );
     circleCameraFactory = () => FakeCircleCamera(
       circle: RecordedCircle(
         bytes: Uint8List.fromList([1, 2, 3]),
@@ -224,6 +235,54 @@ void main() {
     await prepare(tester, ChatScreen(chatId: 'c3', peer: mockUsers.last));
     await tester.pump();
     await _capture(tester, '26_chat_circle');
+  });
+
+  testWidgets('call screens', (tester) async {
+    final bus = MemoryCallBus();
+    const alice = UserSummary(
+      id: 'alice',
+      username: 'alice',
+      displayName: 'Viktor Dudovich',
+    );
+    final caller = CallService(
+      signaling: MemoryCallSignaling('alice', bus),
+      engineFactory: MockCallEngine.new,
+      self: () => alice,
+    );
+    final callee = CallService(
+      signaling: MemoryCallSignaling('bob', bus),
+      engineFactory: MockCallEngine.new,
+      self: () =>
+          const UserSummary(id: 'bob', username: 'bob', displayName: 'Bob'),
+    );
+    callService = callee;
+    await tester.pumpWidget(_wrap(const CallScreen()));
+    await caller.attach('alice');
+    await callee.attach('bob');
+    const bob = UserSummary(id: 'bob', username: 'bob', displayName: 'Bob');
+
+    // 1. Входящий.
+    await caller.startCall(bob, withVideo: false);
+    await tester.pump(const Duration(milliseconds: 100));
+    await _capture(tester, '27_call_incoming');
+
+    // 2. Аудиозвонок, идёт разговор.
+    await callee.accept();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _capture(tester, '28_call_audio');
+    await callee.hangup();
+    await tester.pump(const Duration(seconds: 3));
+
+    // 3. Видеозвонок.
+    await caller.startCall(bob, withVideo: true);
+    await tester.pump(const Duration(milliseconds: 100));
+    await callee.accept();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _capture(tester, '29_call_video');
+    await callee.hangup();
+    await tester.pump(const Duration(seconds: 3));
+    await caller.detach();
+    await callee.detach();
   });
 
   testWidgets('post thread', (tester) async {

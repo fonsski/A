@@ -21,11 +21,17 @@ import 'data/supabase/supabase_presence_repository.dart';
 import 'data/supabase/supabase_privacy_repository.dart';
 import 'data/supabase/supabase_wall_repository.dart';
 import 'data/wall_repository.dart';
+import 'calls/call_engine.dart';
+import 'calls/call_service.dart';
+import 'calls/call_signaling.dart';
+import 'calls/supabase_call_signaling.dart';
 import 'media/audio_backend.dart';
 import 'media/circle_camera.dart';
 import 'media/voice_player.dart';
 import 'media/voice_recorder.dart';
 import 'notifications/notification_service.dart';
+import 'data/models.dart';
+import 'screens/call_screen.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
 
@@ -76,6 +82,24 @@ Future<void> main() async {
     friendsRepository = MockFriendsRepository();
     presenceRepository = MockPresenceRepository();
   }
+  callService = CallService(
+    signaling: AppConfig.useSupabase
+        ? SupabaseCallSignaling()
+        : DemoCallSignaling(),
+    engineFactory: AppConfig.useSupabase
+        ? WebRtcCallEngine.new
+        : MockCallEngine.new,
+    self: () {
+      final auth = authRepository.current;
+      return UserSummary(
+        id: auth?.userId ?? '',
+        username: auth?.profile?.username ?? '',
+        displayName:
+            auth?.profile?.displayName ?? auth?.profile?.username ?? '',
+        avatarUrl: auth?.profile?.avatarUrl,
+      );
+    },
+  );
   await authRepository.init();
   notificationService = NotificationService(prefs)..init();
   runApp(const AMessengerApp());
@@ -95,6 +119,9 @@ class AMessengerApp extends StatelessWidget {
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
           themeMode: mode,
+          // Звонок поверх всех экранов: полный экран или «островок».
+          builder: (context, child) =>
+              CallOverlay(child: child ?? const SizedBox.shrink()),
           home: const SplashScreen(),
         );
       },

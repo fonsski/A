@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../auth/auth_repository.dart';
+import '../calls/call_service.dart';
 import '../widgets/common.dart';
 import 'chats_screen.dart';
 import 'profile_screen.dart';
@@ -16,6 +18,20 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Входящие звонки приходят, пока открыт главный экран.
+    final id = authRepository.current?.userId;
+    if (id != null) callService.attach(id);
+  }
+
+  @override
+  void dispose() {
+    callService.detach();
+    super.dispose();
+  }
 
   void _select(int i) => setState(() => _index = i);
 

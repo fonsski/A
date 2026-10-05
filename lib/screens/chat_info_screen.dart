@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/chat_repository.dart';
+import '../calls/call_service.dart';
 import '../data/models.dart';
 import '../media/voice_player.dart';
 import '../theme.dart';
@@ -188,9 +189,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   Widget _buildCallBar(AColors colors) {
     Widget callButton(String label) => Expanded(
       child: GestureDetector(
-        onTap: () => ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$label-звонки скоро появятся'))),
+        onTap: () =>
+            callService.startCall(widget.peer, withVideo: label == 'Видео'),
         child: Container(
           height: 40,
           alignment: Alignment.center,
