@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../auth/auth_repository.dart';
 import '../../auth/username.dart';
 import 'auth_widgets.dart';
+import 'qr_login_panel.dart';
 
 /// Экран "LogIn": вход по почте или @нику.
 class LoginScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _identifierError;
   String? _passwordError;
   bool _busy = false;
+  bool _qrMode = false;
 
   @override
   void dispose() {
@@ -100,25 +102,34 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
             const SizedBox(height: kAuthToggleToForm),
-            AuthField(
-              label: 'Email или имя пользователя',
-              hint: '@gnida or gnida@tvar.ru',
-              controller: _identifier,
-              keyboardType: TextInputType.emailAddress,
-              errorText: _identifierError,
-            ),
-            const SizedBox(height: kAuthFieldGap),
-            AuthField(
-              label: 'Пароль',
-              hint: 'пароль введи сюда',
-              controller: _password,
-              obscure: true,
-              errorText: _passwordError,
-            ),
-            const SizedBox(height: kAuthFormToButton),
-            AuthButton(label: 'Войти!', onPressed: _submit, busy: _busy),
-            const SizedBox(height: 8),
+            if (_qrMode)
+              const QrLoginPanel()
+            else ...[
+              AuthField(
+                label: 'Email или имя пользователя',
+                hint: '@gnida or gnida@tvar.ru',
+                controller: _identifier,
+                keyboardType: TextInputType.emailAddress,
+                errorText: _identifierError,
+              ),
+              const SizedBox(height: kAuthFieldGap),
+              AuthField(
+                label: 'Пароль',
+                hint: 'пароль введи сюда',
+                controller: _password,
+                obscure: true,
+                errorText: _passwordError,
+              ),
+              const SizedBox(height: kAuthFormToButton),
+              AuthButton(label: 'Войти!', onPressed: _submit, busy: _busy),
+              const SizedBox(height: 8),
+            ],
             AuthLink(label: 'Восcтановить доступ?', onTap: _resetPassword),
+            const SizedBox(height: 8),
+            AuthOutlinedButton(
+              label: _qrMode ? 'Войти иначе' : 'Войти по QR-коду',
+              onPressed: () => setState(() => _qrMode = !_qrMode),
+            ),
           ],
         ),
       ),

@@ -294,6 +294,14 @@ void main() {
     await _capture(tester, '24_post_thread');
   });
 
+  testWidgets('login qr', (tester) async {
+    await prepare(tester, LoginScreen(onSignUpTap: () {}));
+    await tester.tap(find.text('Войти по QR-коду'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await _capture(tester, '30_login_qr');
+    await tester.pumpWidget(const SizedBox()); // остановить опрос
+  });
+
   testWidgets('desktop login', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1.0;
