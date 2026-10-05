@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'qr_login.dart';
+
 /// Профиль пользователя в системе «А?».
 class Profile {
   const Profile({
@@ -96,7 +98,23 @@ abstract class AuthRepository {
 
   /// Меняет пароль, сначала проверяя [current].
   Future<void> changePassword({required String current, required String next});
+
+  /// Экран входа: открывает QR-сессию. Бросает [AuthFailure], если сервер
+  /// не поддерживает QR-вход.
+  Future<QrLoginSession> startQrLogin();
+
+  /// Экран входа: спрашивает, подтвердили ли вход. При подтверждении
+  /// сразу входит в аккаунт ([QrPoll.signedIn]).
+  Future<QrPoll> pollQrLogin(QrLoginSession session);
+
+  /// Телефон: подпись устройства, которое хочет войти, — для окна
+  /// подтверждения. Бросает [AuthFailure], если код неверный или устарел.
+  Future<String> describeQrLogin(String payload);
+
+  /// Телефон: подтверждает вход на устройстве с этим QR.
+  Future<void> approveQrLogin(String payload);
 }
 
-/// Единая точка доступа; назначается в main() до runApp.
-late final AuthRepository authRepository;
+/// Единая точка доступа; назначается в main() до runApp (в тестах — заново
+/// перед каждым тестом, поэтому не `final`).
+late AuthRepository authRepository;

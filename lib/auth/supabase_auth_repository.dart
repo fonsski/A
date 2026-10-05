@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import 'auth_repository.dart';
+import 'qr_login.dart';
 
 /// Реализация поверх Supabase Auth + таблицы profiles.
 /// Требует применённой схемы из supabase/schema.sql.
@@ -220,6 +221,102 @@ class SupabaseAuthRepository implements AuthRepository {
       await _client.auth.updateUser(sb.UserAttributes(password: next));
     } on sb.AuthException catch (e) {
       throw AuthFailure(_ru(e));
+    }
+  }
+
+  // ── вход по QR ──────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> _qr(Map<String, dynamic> body) async {
+    try {
+      final res = await _client.functions.invoke('qr-login', body: body);
+      return Map<String, dynamic>.from(res.data as Map);
+    } on sb.FunctionException catch (e) {
+      if (e.status == 404) {
+        throw const AuthFailure('QR-вход ещё не настроен на сервере');
+      }
+      if (e.status == 403) throw const AuthFailure('Код не подошёл');
+      throw AuthFailure('QR-вход не сработал (${e.status})');
+    } catch (e) {
+      debugPrint('QR-вход: $e');
+      throw const AuthFailure('Нет связи с сервером');
+    }
+  }
+
+  String get _deviceLabel =>
+      '${kIsWeb ? 'Браузер' : 'Приложение'} · ${defaultTargetPlatform.name}';
+
+  @override
+  Future<QrLoginSession> startQrLogin() async {
+    final res = await _qr({'action': 'create', 'device': _deviceLabel});
+    final id = res['id'] as String?;
+    final code = res['code'] as String?;
+    final claim = res['claim'] as String?;
+    if (id == null || code == null || claim == null) {
+      throw const AuthFailure('QR-вход не сработал');
+    }
+    return QrLoginSession(
+      id: id,
+      payload: buildQrPayload(id, code),
+      claim: claim,
+      expiresAt: DateTime.now().add(
+        Duration(seconds: (res['expires_in'] as num?)?.toInt() ?? 120),
+      ),
+    );
+  }
+
+  @override
+  Future<QrPoll> pollQrLogin(QrLoginSession session) async {
+    final res = await _qr({
+      'action': 'claim',
+      'id': session.id,
+      'claim': session.claim,
+    });
+    switch (res['status']) {
+      case 'approved':
+        final tokenHash = res['token_hash'] as String?;
+        if (tokenHash == null) throw const AuthFailure('QR-вход не сработал');
+        try {
+          await _client.auth.verifyOTP(
+            tokenHash: tokenHash,
+            type: sb.OtpType.magiclink,
+          );
+        } on sb.AuthException catch (e) {
+          throw AuthFailure(_ru(e));
+        }
+        return QrPoll.signedIn;
+      case 'pending':
+        return QrPoll.pending;
+      default:
+        return QrPoll.expired;
+    }
+  }
+
+  @override
+  Future<String> describeQrLogin(String payload) async {
+    final parsed = parseQrPayload(payload);
+    if (parsed == null) throw const AuthFailure('Это не QR-код входа в «А?»');
+    final res = await _qr({
+      'action': 'info',
+      'id': parsed.id,
+      'code': parsed.code,
+    });
+    if (res['status'] != 'pending') {
+      throw const AuthFailure('Код устарел — обнови QR на экране входа');
+    }
+    return (res['device'] ?? 'Новое устройство') as String;
+  }
+
+  @override
+  Future<void> approveQrLogin(String payload) async {
+    final parsed = parseQrPayload(payload);
+    if (parsed == null) throw const AuthFailure('Это не QR-код входа в «А?»');
+    final res = await _qr({
+      'action': 'approve',
+      'id': parsed.id,
+      'code': parsed.code,
+    });
+    if (res['status'] != 'approved') {
+      throw const AuthFailure('Код устарел — обнови QR на экране входа');
     }
   }
 

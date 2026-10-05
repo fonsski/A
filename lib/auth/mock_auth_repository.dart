@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'auth_repository.dart';
+import 'qr_login.dart';
 
 class _MockUser {
   _MockUser({required this.email, required this.password});
@@ -21,9 +22,19 @@ class _MockUser {
 /// Локальный бэкенд для разработки без Supabase: всё в памяти,
 /// «письмо» подтверждается автоматически через [confirmDelay].
 class MockAuthRepository implements AuthRepository {
-  MockAuthRepository({this.confirmDelay = const Duration(seconds: 5)});
+  MockAuthRepository({
+    this.confirmDelay = const Duration(seconds: 5),
+    this.qrApprovedAfterPolls = 3,
+  });
 
   final Duration confirmDelay;
+
+  /// Через сколько опросов демо-«телефон» подтверждает QR-вход.
+  final int qrApprovedAfterPolls;
+  var _qrPolls = 0;
+
+  /// id QR-кодов, которые подтвердили через [approveQrLogin] (для тестов).
+  final qrApproved = <String>{};
 
   final _users = <String, _MockUser>{
     // Готовый аккаунт для быстрой проверки входа: demo@a.ru / password1
@@ -206,6 +217,40 @@ class MockAuthRepository implements AuthRepository {
       throw const AuthFailure('Текущий пароль неверный');
     }
     user.password = next;
+  }
+
+  @override
+  Future<QrLoginSession> startQrLogin() async {
+    _qrPolls = 0;
+    return QrLoginSession(
+      id: 'mock-qr',
+      payload: buildQrPayload('mock-qr', 'demo-code'),
+      claim: 'mock-claim',
+      expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+    );
+  }
+
+  @override
+  Future<QrPoll> pollQrLogin(QrLoginSession session) async {
+    if (++_qrPolls < qrApprovedAfterPolls) return QrPoll.pending;
+    // «Телефон» подтвердил — входим демо-пользователем.
+    await signIn(identifier: 'demo@a.ru', password: 'password1');
+    return QrPoll.signedIn;
+  }
+
+  @override
+  Future<String> describeQrLogin(String payload) async {
+    if (parseQrPayload(payload) == null) {
+      throw const AuthFailure('Это не QR-код входа в «А?»');
+    }
+    return 'Тестовое устройство';
+  }
+
+  @override
+  Future<void> approveQrLogin(String payload) async {
+    final parsed = parseQrPayload(payload);
+    if (parsed == null) throw const AuthFailure('Это не QR-код входа в «А?»');
+    qrApproved.add(parsed.id);
   }
 
   @override

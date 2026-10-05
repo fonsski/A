@@ -4,6 +4,7 @@ import '../auth/auth_repository.dart';
 import '../auth/username.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'qr_scan_screen.dart';
 
 /// Экран «Безопасность и вход» (кадр «Вход и бехопсность» в макете):
 /// настройки аккаунта (почта) и безопасность (пароль).
@@ -97,6 +98,17 @@ class AccountSecurityScreen extends StatelessWidget {
                         value: '••••••••',
                         action: 'Изменить',
                         onTap: () => _changePassword(context),
+                      ),
+                      const SizedBox(height: 16),
+                      _LabeledRow(
+                        label: 'Вход по QR-коду',
+                        value: 'Войти на другом устройстве',
+                        action: 'Сканировать',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const QrScanScreen(),
+                          ),
+                        ),
                       ),
                     ],
                   );

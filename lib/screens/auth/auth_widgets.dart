@@ -241,6 +241,42 @@ class AuthButton extends StatelessWidget {
   }
 }
 
+/// Кнопка-контур (красная рамка) — «Войти по QR-коду» / «Войти иначе».
+class AuthOutlinedButton extends StatelessWidget {
+  const AuthOutlinedButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: colors.accent, width: 2),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Центрированная текстовая ссылка («Уже есть аккаунт?» и т.п.).
 class AuthLink extends StatelessWidget {
   const AuthLink({super.key, required this.label, required this.onTap});
