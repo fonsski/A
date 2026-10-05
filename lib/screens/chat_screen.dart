@@ -43,6 +43,14 @@ class _ChatScreenState extends State<ChatScreen> {
   var _reactions = const <String, List<ReactionSummary>>{};
   Message? _replyTo;
 
+  // Потоки создаются один раз: в build они открывали бы новую подписку
+  // Supabase на каждую перерисовку (набор текста, таймер записи, плеер).
+  late final _messagesStream = chatRepository.watchMessages(widget.chatId);
+  late final _reactionsStream = chatRepository.watchReactions(widget.chatId);
+  late final _pinnedStream = chatRepository
+      .watchPinned(widget.chatId)
+      .asBroadcastStream();
+
   // Запись голосового.
   static const _minVoice = Duration(seconds: 1);
   static const _maxVoice = Duration(minutes: 5);
@@ -404,7 +412,7 @@ class _ChatScreenState extends State<ChatScreen> {
   /// «+N» при нескольких пинах; тап — скролл, иконка списка — все закрепы.
   Widget _buildPinnedBar(AColors colors) {
     return StreamBuilder<List<String>>(
-      stream: chatRepository.watchPinned(widget.chatId),
+      stream: _pinnedStream,
       builder: (context, snapshot) {
         _pinnedIds = snapshot.data ?? _pinnedIds;
         final message = _lastMessages
@@ -483,7 +491,7 @@ class _ChatScreenState extends State<ChatScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheet) => StreamBuilder<List<String>>(
-        stream: chatRepository.watchPinned(widget.chatId),
+        stream: _pinnedStream,
         initialData: _pinnedIds,
         builder: (context, snapshot) {
           final ids = snapshot.data ?? const <String>[];
@@ -778,7 +786,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessageList(AColors colors) {
     return StreamBuilder<List<Message>>(
-      stream: chatRepository.watchMessages(widget.chatId),
+      stream: _messagesStream,
       builder: (context, snapshot) {
         var messages = snapshot.data ?? const <Message>[];
         _lastMessages = messages;
@@ -1145,7 +1153,7 @@ class _ChatScreenState extends State<ChatScreen> {
             if (_searchMode) _buildSearchBar(colors),
             Expanded(
               child: StreamBuilder<Map<String, List<ReactionSummary>>>(
-                stream: chatRepository.watchReactions(widget.chatId),
+                stream: _reactionsStream,
                 builder: (context, reactionsSnapshot) {
                   _reactions = reactionsSnapshot.data ?? _reactions;
                   return _buildMessageList(colors);

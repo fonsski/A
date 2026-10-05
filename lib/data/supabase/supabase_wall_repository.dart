@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
 import '../wall_repository.dart';
+import 'snapshot_stream.dart';
 
 /// Стенка поверх Supabase: посты с вложенными комментариями и реакциями,
 /// realtime-подписка обновляет ленту при любых изменениях.
@@ -158,18 +159,18 @@ class SupabaseWallRepository implements WallRepository {
     });
   }
 
-  Stream<List<Post>> _all() async* {
-    if (_last != null) yield _last!;
-    unawaited(_refresh());
-    yield* _controller.stream;
-  }
+  Stream<List<Post>> _all() => snapshotThenUpdates(
+    _controller.stream,
+    snapshot: () => _last,
+    afterSubscribe: () => unawaited(_refresh()),
+  );
 
   @override
-  Stream<List<Post>> watchFeed() async* {
-    if (_last != null) yield _rankedFeed(_last!);
-    unawaited(_refresh());
-    yield* _controller.stream.map(_rankedFeed);
-  }
+  Stream<List<Post>> watchFeed() => snapshotThenUpdates(
+    _controller.stream.map(_rankedFeed),
+    snapshot: () => _last == null ? null : _rankedFeed(_last!),
+    afterSubscribe: () => unawaited(_refresh()),
+  );
 
   @override
   Stream<List<Post>> watchMine() =>

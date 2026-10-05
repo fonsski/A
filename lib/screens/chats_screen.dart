@@ -18,6 +18,10 @@ class ChatsScreen extends StatefulWidget {
 class _ChatsScreenState extends State<ChatsScreen> {
   String _query = '';
 
+  // Поток один на экран: иначе каждая буква поиска переподписывала бы
+  // список чатов и запрашивала его у сервера заново.
+  late final _chats = chatRepository.watchChats();
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -83,7 +87,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
         const SizedBox(height: 12),
         Expanded(
           child: StreamBuilder<List<ChatSummary>>(
-            stream: chatRepository.watchChats(),
+            stream: _chats,
             builder: (context, snapshot) {
               final chats = (snapshot.data ?? const <ChatSummary>[])
                   .where(

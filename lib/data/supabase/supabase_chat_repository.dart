@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../chat_repository.dart';
 import '../models.dart';
+import 'snapshot_stream.dart';
 
 class _MessagesState {
   final controller = StreamController<List<Message>>.broadcast();
@@ -91,11 +93,11 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Stream<List<ChatSummary>> watchChats() async* {
-    if (_lastChats != null) yield _lastChats!;
-    unawaited(_refreshChats());
-    yield* _chatsController.stream;
-  }
+  Stream<List<ChatSummary>> watchChats() => snapshotThenUpdates(
+    _chatsController.stream,
+    snapshot: () => _lastChats,
+    afterSubscribe: () => unawaited(_refreshChats()),
+  );
 
   /// Состояние ленты чата: строки из realtime + мои скрытые сообщения.
   final _messageStates = <String, _MessagesState>{};
@@ -118,17 +120,34 @@ class SupabaseChatRepository implements ChatRepository {
     } catch (_) {
       // Таблица могла быть не создана — работаем без «удалено у себя».
     }
+    _listenMessages(chatId, state);
+  }
+
+  /// Подписка на сообщения чата. Если realtime-соединение оборвалось (сеть,
+  /// сон ноутбука, обновление токена), переподписываемся сами: иначе чат
+  /// молча переставал бы получать новые сообщения до перезагрузки страницы.
+  void _listenMessages(String chatId, _MessagesState state) {
+    void retry(Object? reason) {
+      debugPrint('Подписка на сообщения оборвалась ($reason), переподписка');
+      state.sub?.cancel();
+      Timer(const Duration(seconds: 3), () => _listenMessages(chatId, state));
+    }
+
     state.sub = _client
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('chat_id', chatId)
         .order('id', ascending: true)
-        .listen((rows) {
-          state
-            ..rows = rows
-            ..ready = true;
-          state.controller.add(_visibleMessages(chatId, state));
-        });
+        .listen(
+          (rows) {
+            state
+              ..rows = rows
+              ..ready = true;
+            state.controller.add(_visibleMessages(chatId, state));
+          },
+          onError: retry,
+          onDone: () => retry('done'),
+        );
   }
 
   List<Message> _visibleMessages(String chatId, _MessagesState state) => [
@@ -166,10 +185,12 @@ class SupabaseChatRepository implements ChatRepository {
   ];
 
   @override
-  Stream<List<Message>> watchMessages(String chatId) async* {
+  Stream<List<Message>> watchMessages(String chatId) {
     final state = _messagesStateFor(chatId);
-    if (state.ready) yield _visibleMessages(chatId, state);
-    yield* state.controller.stream;
+    return snapshotThenUpdates(
+      state.controller.stream,
+      snapshot: () => state.ready ? _visibleMessages(chatId, state) : null,
+    );
   }
 
   @override

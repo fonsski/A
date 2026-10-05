@@ -40,6 +40,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   late bool _calling = widget.startCalling;
   _MediaTab _tab = _MediaTab.photo;
 
+  // Один поток на экран, а не новая подписка при каждой смене вкладки.
+  late final Stream<List<Message>>? _messagesStream = widget.chatId == null
+      ? null
+      : chatRepository.watchMessages(widget.chatId!);
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -318,7 +323,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     if (chatId == null) return empty();
 
     return StreamBuilder<List<Message>>(
-      stream: chatRepository.watchMessages(chatId),
+      stream: _messagesStream,
       builder: (context, snapshot) {
         final messages = (snapshot.data ?? const <Message>[]).reversed.toList();
 
