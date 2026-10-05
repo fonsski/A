@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
@@ -10,13 +11,15 @@ import 'snapshot_stream.dart';
 /// realtime-подписка обновляет ленту при любых изменениях.
 class SupabaseWallRepository implements WallRepository {
   SupabaseWallRepository() : _client = Supabase.instance.client {
-    final channel = _client.channel('wall-feed');
-    for (final table in [
-      'posts',
-      'comments',
-      'reactions',
-      'comment_reactions',
-    ]) {
+    _watch('wall-feed', ['posts', 'comments', 'reactions']);
+    // Отдельный канал: до fix_016 такой таблицы нет, и ошибка подписки не
+    // должна ронять realtime постов и комментариев.
+    _watch('wall-comment-reactions', ['comment_reactions']);
+  }
+
+  void _watch(String name, List<String> tables) {
+    final channel = _client.channel(name);
+    for (final table in tables) {
       channel.onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
@@ -55,18 +58,59 @@ class SupabaseWallRepository implements WallRepository {
     }
   }
 
-  Future<void> _refreshPosts() async {
-    final rows = await _client
+  static const _authorFields = 'username, display_name, avatar_url';
+
+  /// Полный запрос — со схемой после fix_016 (репосты, ветки, дизлайки).
+  static const _fullSelect =
+      '''
+    id, wall_owner_id, author_id, body, repost_of, created_at,
+    author:profiles!posts_author_id_fkey($_authorFields),
+    comments(id, body, image_url, parent_id, author_id, created_at,
+             author:profiles!comments_author_id_fkey($_authorFields),
+             comment_reactions(user_id, kind)),
+    reactions(user_id, kind)
+  ''';
+
+  /// Запрос для базы без fix_016: стена работает, новых возможностей нет.
+  static const _legacySelect =
+      '''
+    id, wall_owner_id, author_id, body, created_at,
+    author:profiles!posts_author_id_fkey($_authorFields),
+    comments(id, body, image_url, created_at, author_id,
+             author:profiles!comments_author_id_fkey($_authorFields)),
+    reactions(user_id, kind)
+  ''';
+
+  /// До этого момента не пробуем полный запрос (миграция не применена).
+  DateTime? _legacyUntil;
+
+  /// Нет таблицы/колонки/связи из fix_016 — база ещё на старой схеме.
+  static bool _isMissingSchema(PostgrestException e) =>
+      const {'PGRST200', 'PGRST204', '42703', '42P01'}.contains(e.code);
+
+  Future<List<Map<String, dynamic>>> _fetchRows() async {
+    final legacy =
+        _legacyUntil != null && DateTime.now().isBefore(_legacyUntil!);
+    if (!legacy) {
+      try {
+        return await _client
+            .from('posts')
+            .select(_fullSelect)
+            .order('created_at', ascending: false);
+      } on PostgrestException catch (e) {
+        if (!_isMissingSchema(e)) rethrow;
+        debugPrint('Стена: схема без fix_016 (${e.code}), старый запрос');
+        _legacyUntil = DateTime.now().add(const Duration(minutes: 1));
+      }
+    }
+    return _client
         .from('posts')
-        .select('''
-          id, wall_owner_id, author_id, body, repost_of, created_at,
-          author:profiles!posts_author_id_fkey(username, display_name, avatar_url),
-          comments(id, body, image_url, parent_id, author_id, created_at,
-                   author:profiles!comments_author_id_fkey(username, display_name, avatar_url),
-                   comment_reactions(user_id, kind)),
-          reactions(user_id, kind)
-        ''')
+        .select(_legacySelect)
         .order('created_at', ascending: false);
+  }
+
+  Future<void> _refreshPosts() async {
+    final rows = await _fetchRows();
 
     // Оригиналы репостов берём из тех же строк: что не пришло — для меня
     // скрыто приватностью (RLS), и такая запись покажется «недоступной».
