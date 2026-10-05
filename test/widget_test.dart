@@ -15,6 +15,10 @@ import 'package:a_messenger/data/mock/mock_wall_repository.dart';
 import 'package:a_messenger/data/presence_repository.dart';
 import 'package:a_messenger/data/privacy_repository.dart';
 import 'package:a_messenger/data/reaction_usage.dart';
+import 'package:a_messenger/calls/call_engine.dart';
+import 'package:a_messenger/calls/call_service.dart';
+import 'package:a_messenger/calls/call_signaling.dart';
+import 'package:a_messenger/data/models.dart' show UserSummary;
 import 'package:a_messenger/media/circle_camera.dart';
 import 'package:a_messenger/media/voice_player.dart';
 import 'package:a_messenger/media/voice_recorder.dart';
@@ -53,6 +57,12 @@ void main() {
     pinLock = PinLock(prefs);
     reactionUsage = ReactionUsage(prefs);
     voicePlayer = VoicePlayerController(FakeAudioBackend());
+    callService = CallService(
+      signaling: DemoCallSignaling(),
+      engineFactory: MockCallEngine.new,
+      self: () =>
+          const UserSummary(id: 'me', username: 'me', displayName: 'Me'),
+    );
     circleCameraFactory = () => FakeCircleCamera(
       circle: RecordedCircle(
         bytes: Uint8List.fromList([1, 2, 3]),
@@ -228,6 +238,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ChatInfoScreen), findsNothing);
     expect(find.text('Сообщение'), findsOneWidget);
+  });
+
+  testWidgets('звонок: аудио из инфо чата, свернуть, завершить', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AMessengerApp());
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    await tester.tap(find.text('Viktor Dudovich'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Viktor Dudovich')); // шапка → инфо о чате
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Звонок'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Аудио'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Полноэкранный звонок: имя, статус и ряд кнопок из макета.
+    expect(find.text('Звоним…'), findsOneWidget);
+    expect(find.text('Свернуть в островок'), findsOneWidget);
+    for (final label in ['Звук', 'Камера', 'Микрофон', 'Завершить']) {
+      expect(find.text(label), findsOneWidget);
+    }
+
+    // Демо-собеседник отвечает через ~2 секунды, потом идёт разговор.
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.textContaining('00:0'), findsOneWidget);
+
+    // Свернули: приложение под звонком снова доступно.
+    await tester.tap(find.text('Свернуть в островок'));
+    await tester.pump();
+    expect(find.text('Свернуть в островок'), findsNothing);
+    expect(find.byType(ChatInfoScreen), findsOneWidget);
+
+    // Развернули островок и положили трубку.
+    await tester.tap(find.byIcon(Icons.call_end).first);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('Звоним…'), findsNothing);
+    expect(callService.inCall, isFalse);
   });
 
   testWidgets('стенка: новый пост появляется в «Моё!»', (tester) async {
