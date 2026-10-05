@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../friends_repository.dart';
 import '../presence_repository.dart';
+import 'snapshot_stream.dart';
 
 /// «В сети» через Supabase Realtime Presence + last_seen_at в profiles.
 ///
@@ -123,10 +124,8 @@ class SupabasePresenceRepository implements PresenceRepository {
   Set<String> get online => _visibleOnline();
 
   @override
-  Stream<Set<String>> watchOnline() async* {
-    yield online;
-    yield* _controller.stream;
-  }
+  Stream<Set<String>> watchOnline() =>
+      snapshotThenUpdates(_controller.stream, snapshot: () => online);
 
   @override
   Future<DateTime?> lastSeen(String userId) async {

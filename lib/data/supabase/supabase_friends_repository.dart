@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../friends_repository.dart';
 import '../models.dart';
+import 'snapshot_stream.dart';
 
 /// Друзья поверх таблицы friendships (user_a < user_b, одна строка на пару).
 class SupabaseFriendsRepository implements FriendsRepository {
@@ -79,11 +80,11 @@ class SupabaseFriendsRepository implements FriendsRepository {
   };
 
   @override
-  Stream<List<FriendEntry>> watchFriends() async* {
-    if (_last != null) yield _last!;
-    unawaited(_refresh());
-    yield* _controller.stream;
-  }
+  Stream<List<FriendEntry>> watchFriends() => snapshotThenUpdates(
+    _controller.stream,
+    snapshot: () => _last,
+    afterSubscribe: () => unawaited(_refresh()),
+  );
 
   @override
   Future<void> sendRequest(String userId) async {
@@ -160,11 +161,11 @@ class SupabaseFriendsRepository implements FriendsRepository {
   };
 
   @override
-  Stream<List<UserSummary>> watchBlocked() async* {
-    if (_blocked != null) yield _blocked!;
-    unawaited(_refreshBlocked());
-    yield* _blockedController.stream;
-  }
+  Stream<List<UserSummary>> watchBlocked() => snapshotThenUpdates(
+    _blockedController.stream,
+    snapshot: () => _blocked,
+    afterSubscribe: () => unawaited(_refreshBlocked()),
+  );
 
   @override
   Future<void> block(UserSummary user) async {
