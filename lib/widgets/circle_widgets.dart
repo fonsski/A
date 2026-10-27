@@ -417,7 +417,7 @@ class _CircleMessageViewState extends State<CircleMessageView> {
               _Pill(
                 child: Text(
                   message.mine
-                      ? '${formatMessageStamp(message.sentAt)} АА'
+                      ? '${formatMessageStamp(message.sentAt)} ${readMarkText(read: message.read)}'
                       : formatMessageStamp(message.sentAt),
                   style: TextStyle(color: colors.accent, fontSize: 10),
                 ),

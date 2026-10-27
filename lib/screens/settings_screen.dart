@@ -7,9 +7,11 @@ import '../notifications/notification_service.dart';
 import '../notifications/web_notifier_stub.dart'
     if (dart.library.js_interop) '../notifications/web_notifier_web.dart'
     as notifier;
+import '../settings/app_settings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'account_security_screen.dart';
+import 'faq_screen.dart';
 import 'privacy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -25,11 +27,141 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    appSettings.addListener(_onSettingsChanged);
     SharedPreferences.getInstance().then((prefs) {
       if (mounted) {
         setState(() => _notifyDm = prefs.getBool(kNotifyDmPref) ?? true);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    appSettings.removeListener(_onSettingsChanged);
+    super.dispose();
+  }
+
+  void _onSettingsChanged() => setState(() {});
+
+  /// Лист выбора одного варианта: галочка у текущего, тап — выбрать и закрыть.
+  Future<void> _pickOption({
+    required String title,
+    required List<String> labels,
+    required int selected,
+    required ValueChanged<int> onSelect,
+    Widget? Function(int index)? leading,
+  }) {
+    final colors = context.colors;
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.surface,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ASectionTitle(title),
+              ),
+            ),
+            // Прокручиваемый список: на невысоком окне варианты не должны
+            // вылезать за границы листа.
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 8),
+                children: [
+                  for (var i = 0; i < labels.length; i++)
+                    ListTile(
+                      leading: leading?.call(i),
+                      title: Text(
+                        labels[i],
+                        style: TextStyle(color: colors.textPrimary),
+                      ),
+                      trailing: i == selected
+                          ? Icon(Icons.check, color: colors.accent)
+                          : null,
+                      onTap: () {
+                        onSelect(i);
+                        Navigator.of(sheet).pop();
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFontSize() => _pickOption(
+    title: 'Размер шрифта в чатах',
+    labels: [for (final o in kFontSizeOptions) o.label],
+    selected: appSettings.fontSizeIndex,
+    onSelect: appSettings.setFontSizeIndex,
+  );
+
+  Future<void> _pickChatBackground() {
+    final brightness = Theme.of(context).brightness;
+    final colors = context.colors;
+    return _pickOption(
+      title: 'Фон чатов',
+      labels: [for (final o in kChatBackgrounds) o.label],
+      selected: appSettings.chatBackgroundIndex,
+      onSelect: appSettings.setChatBackgroundIndex,
+      leading: (i) => Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: kChatBackgrounds[i].colorFor(brightness) ?? colors.bg,
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.hint),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showMemoryUsage() {
+    final colors = context.colors;
+    return showDialog<void>(
+      context: context,
+      builder: (dialog) {
+        final cache = PaintingBinding.instance.imageCache;
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text(
+            'Использование памяти',
+            style: TextStyle(color: colors.textPrimary, fontSize: 18),
+          ),
+          content: Text(
+            'Кэш изображений: ${formatBytes(cache.currentSizeBytes)} '
+            '(${cache.currentSize} шт.)',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialog).pop(),
+              child: Text('Закрыть', style: TextStyle(color: colors.hint)),
+            ),
+            TextButton(
+              onPressed: () {
+                cache
+                  ..clear()
+                  ..clearLiveImages();
+                Navigator.of(dialog).pop();
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Кэш очищен')));
+              },
+              child: Text('Очистить', style: TextStyle(color: colors.accent)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _toggleNotifyDm(bool value) async {
@@ -89,15 +221,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? ThemeMode.light
                     : ThemeMode.dark,
               ),
-              const _SettingsRow('Размер шрифта'),
-              const _SettingsRow('Фон чатов'),
+              _SettingsRow(
+                'Размер шрифта',
+                trailing: _ValueLabel(
+                  kFontSizeOptions[appSettings.fontSizeIndex].label,
+                ),
+                onTap: _pickFontSize,
+              ),
+              _SettingsRow(
+                'Фон чатов',
+                trailing: _ValueLabel(
+                  kChatBackgrounds[appSettings.chatBackgroundIndex].label,
+                ),
+                onTap: _pickChatBackground,
+              ),
               const SizedBox(height: 16),
               const ASectionTitle('Память и данные'),
-              const _SettingsRow('Автозагрузка медиа'),
-              const _SettingsRow('Использование памяти'),
+              _SettingsRow(
+                'Автозагрузка медиа',
+                trailing: Switch(
+                  value: appSettings.autoloadMedia,
+                  activeThumbColor: context.colors.accent,
+                  onChanged: appSettings.setAutoloadMedia,
+                ),
+                onTap: () =>
+                    appSettings.setAutoloadMedia(!appSettings.autoloadMedia),
+              ),
+              _SettingsRow('Использование памяти', onTap: _showMemoryUsage),
               const SizedBox(height: 16),
               const ASectionTitle('Поддержка и информация'),
-              const _SettingsRow('Помощь / FAQ'),
+              _SettingsRow(
+                'Помощь / FAQ',
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const FaqScreen())),
+              ),
               const _SettingsRow('Связь с поддержкой'),
               _SettingsRow(
                 'О приложении',
@@ -122,6 +280,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Размер в человекочитаемом виде: «512 Б», «1.5 КБ», «3.2 МБ».
+String formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes Б';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} КБ';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} МБ';
+}
+
+/// Текущее значение настройки справа в строке.
+class _ValueLabel extends StatelessWidget {
+  const _ValueLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
     );
   }
 }

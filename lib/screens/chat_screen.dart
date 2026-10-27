@@ -13,6 +13,7 @@ import '../data/reaction_usage.dart';
 import '../media/voice_player.dart';
 import '../media/voice_recorder.dart';
 import '../notifications/notification_service.dart';
+import '../settings/app_settings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/circle_widgets.dart';
@@ -69,6 +70,24 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onTextChanged() => setState(() {});
+
+  /// id последнего входящего, которое уже отмечено прочитанным.
+  String? _markedIncomingId;
+
+  /// Пока чат открыт, новое входящее сразу считается прочитанным —
+  /// иначе у собеседника «А» не стало бы «АА» до выхода из чата.
+  void _markIncomingRead(List<Message> messages) {
+    final lastIncoming = messages
+        .where((m) => !m.mine && m.kind == MessageKind.user)
+        .lastOrNull;
+    if (lastIncoming == null || lastIncoming.id == _markedIncomingId) return;
+    _markedIncomingId = lastIncoming.id;
+    // После кадра: markRead обновляет список чатов, а это нельзя делать
+    // посреди build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) chatRepository.markRead(widget.chatId);
+    });
+  }
 
   @override
   void dispose() {
@@ -790,6 +809,7 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (context, snapshot) {
         var messages = snapshot.data ?? const <Message>[];
         _lastMessages = messages;
+        _markIncomingRead(messages);
         final query = _searchQuery.trim().toLowerCase();
         if (_searchMode && query.isNotEmpty) {
           messages = messages
@@ -1086,6 +1106,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Scaffold(
+      backgroundColor: appSettings.chatBackgroundFor(
+        Theme.of(context).brightness,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -1240,31 +1263,9 @@ class _Attachment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     switch (message.attachmentKind) {
       case AttachmentKind.image || null:
-        return GestureDetector(
-          onTap: () => PhotoViewScreen.open(
-            context,
-            message.attachmentUrl!,
-            caption: message.text.isEmpty ? null : message.text,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image(
-              image: imageProviderFor(message.attachmentUrl!),
-              width: 220,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                width: 220,
-                height: 120,
-                color: colors.bg,
-                alignment: Alignment.center,
-                child: Icon(Icons.broken_image, color: colors.textSecondary),
-              ),
-            ),
-          ),
-        );
+        return _PhotoBubble(message: message);
       case AttachmentKind.video:
         return _VideoBubble(message: message);
       case AttachmentKind.file:
@@ -1280,6 +1281,75 @@ class _Attachment extends StatelessWidget {
       case AttachmentKind.circle:
         return CircleMessageView(message: message);
     }
+  }
+}
+
+/// Фото в пузыре. При выключенной «Автозагрузке медиа» вместо картинки —
+/// плашка, фото подгружается по нажатию.
+class _PhotoBubble extends StatefulWidget {
+  const _PhotoBubble({required this.message});
+
+  final Message message;
+
+  @override
+  State<_PhotoBubble> createState() => _PhotoBubbleState();
+}
+
+class _PhotoBubbleState extends State<_PhotoBubble> {
+  var _loadedByTap = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final message = widget.message;
+    final show = appSettings.autoloadMedia || _loadedByTap;
+    if (!show) {
+      return GestureDetector(
+        onTap: () => setState(() => _loadedByTap = true),
+        child: Container(
+          width: 220,
+          height: 120,
+          decoration: BoxDecoration(
+            color: colors.bg,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.download, color: colors.accent),
+              const SizedBox(height: 4),
+              Text(
+                'Нажми, чтобы загрузить фото',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () => PhotoViewScreen.open(
+        context,
+        message.attachmentUrl!,
+        caption: message.text.isEmpty ? null : message.text,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image(
+          image: imageProviderFor(message.attachmentUrl!),
+          width: 220,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Container(
+            width: 220,
+            height: 120,
+            color: colors.bg,
+            alignment: Alignment.center,
+            child: Icon(Icons.broken_image, color: colors.textSecondary),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1565,7 +1635,7 @@ class _Bubble extends StatelessWidget {
                 message.text,
                 style: TextStyle(
                   color: colors.textPrimary,
-                  fontSize: 16,
+                  fontSize: 16 * appSettings.fontScale,
                   fontWeight: FontWeight.w300,
                   height: 1.2,
                 ),
@@ -1587,10 +1657,7 @@ class _Bubble extends StatelessWidget {
                 ),
                 if (message.mine) ...[
                   const SizedBox(width: 4),
-                  Text(
-                    'АА',
-                    style: TextStyle(color: colors.accent, fontSize: 10),
-                  ),
+                  ReadMark(read: message.read),
                 ],
               ],
             ),

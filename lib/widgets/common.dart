@@ -6,6 +6,25 @@ import '../theme.dart';
 
 const kPillRadius = 36.0;
 
+/// Статус моего сообщения: «А» — отправлено, «АА» — собеседник прочитал.
+String readMarkText({required bool read}) => read ? 'АА' : 'А';
+
+/// Галочки прочтения «А»/«АА» из макета (в пузырях и в списке чатов).
+class ReadMark extends StatelessWidget {
+  const ReadMark({super.key, required this.read, this.fontSize = 10});
+
+  final bool read;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      readMarkText(read: read),
+      style: TextStyle(color: context.colors.accent, fontSize: fontSize),
+    );
+  }
+}
+
 /// Плашка-«пилюля» из макета: скруглённая, с ВНУТРЕННЕЙ тенью
 /// (в Figma все эффекты — inset box-shadow, обычно 0 2 4 rgba(0,0,0,.1)).
 Decoration pillDecoration(

@@ -22,6 +22,8 @@ class ChatSummary {
     required this.lastText,
     required this.lastAt,
     required this.unread,
+    this.lastMine = false,
+    this.lastRead = false,
     this.peerId,
     this.peerUsername,
     this.peerAvatarUrl,
@@ -32,6 +34,12 @@ class ChatSummary {
   final String lastText;
   final DateTime? lastAt;
   final int unread;
+
+  /// Последнее сообщение — моё: в списке рядом с временем рисуется «А»/«АА».
+  final bool lastMine;
+
+  /// Собеседник прочитал последнее сообщение (имеет смысл при [lastMine]).
+  final bool lastRead;
   final String? peerId;
   final String? peerUsername;
   final String? peerAvatarUrl;
@@ -78,6 +86,7 @@ class Message {
     required this.sentAt,
     required this.mine,
     this.kind = MessageKind.user,
+    this.read = false,
     this.replyToId,
     this.attachmentUrl,
     this.attachmentKind,
@@ -92,6 +101,26 @@ class Message {
   final DateTime sentAt;
   final bool mine;
   final MessageKind kind;
+
+  /// Моё сообщение прочитал собеседник («АА» вместо «А»).
+  final bool read;
+
+  /// Копия с другим статусом прочтения.
+  Message withRead(bool value) => Message(
+    id: id,
+    chatId: chatId,
+    text: text,
+    sentAt: sentAt,
+    mine: mine,
+    kind: kind,
+    read: value,
+    replyToId: replyToId,
+    attachmentUrl: attachmentUrl,
+    attachmentKind: attachmentKind,
+    attachmentName: attachmentName,
+    duration: duration,
+    waveform: waveform,
+  );
 
   /// id сообщения, на которое это — ответ.
   final String? replyToId;

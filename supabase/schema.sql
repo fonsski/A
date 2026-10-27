@@ -419,13 +419,16 @@ select
   p.avatar_url as peer_avatar,
   other.user_id as peer_id,
   lm.attachment_type as last_attachment,
-  lm.kind as last_kind
+  lm.kind as last_kind,
+  lm.id as last_id,
+  lm.author_id as last_author_id,
+  other.last_read_message_id as peer_last_read
 from public.chats c
 join public.chat_members cm on cm.chat_id = c.id
 left join public.chat_members other
        on other.chat_id = c.id and other.user_id <> cm.user_id
 left join public.profiles p on p.id = other.user_id
-left join lateral (select body, created_at, attachment_type, kind
+left join lateral (select id, author_id, body, created_at, attachment_type, kind
                      from public.messages m
                     where m.chat_id = c.id
                     order by m.id desc limit 1) lm on true;
@@ -607,7 +610,8 @@ create policy chat_media_insert on storage.objects
 alter publication supabase_realtime
   add table public.messages, public.posts, public.comments, public.reactions,
             public.blacklist, public.chats, public.chat_pins,
-            public.message_reactions, public.comment_reactions;
+            public.message_reactions, public.comment_reactions,
+            public.chat_members;
 
 -- ── Звонки (fix_018) ───────────────────────────────────────────────────────
 -- Есть ли у двух пользователей общий чат (звонить можно только тем,

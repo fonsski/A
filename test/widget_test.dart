@@ -824,6 +824,10 @@ void main() {
       100,
       scrollable: find.byType(Scrollable).first,
     );
+    // scrollUntilVisible останавливается, как только строка построена, —
+    // она может оказаться под нижней навигацией; доводим до полной видимости.
+    await tester.ensureVisible(find.text('Безопасность и вход'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Безопасность и вход'));
     await tester.pumpAndSettle();
 

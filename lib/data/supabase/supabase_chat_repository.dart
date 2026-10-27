@@ -13,7 +13,11 @@ class _MessagesState {
   var rows = const <Map<String, dynamic>>[];
   final hidden = <String>{};
   var ready = false;
+
+  /// До какого id собеседник прочитал чат (chat_members.last_read_message_id).
+  var peerLastRead = 0;
   StreamSubscription<List<Map<String, dynamic>>>? sub;
+  StreamSubscription<List<Map<String, dynamic>>>? membersSub;
 }
 
 /// Чаты поверх Supabase: view `chat_overview` + realtime на `messages`.
@@ -33,6 +37,13 @@ class SupabaseChatRepository implements ChatRepository {
           event: PostgresChangeEvent.delete,
           schema: 'public',
           table: 'messages',
+          callback: (_) => _refreshChats(),
+        )
+        // Собеседник прочитал чат — в списке «А» становится «АА».
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'chat_members',
           callback: (_) => _refreshChats(),
         )
         .subscribe();
@@ -84,6 +95,12 @@ class SupabaseChatRepository implements ChatRepository {
               ? null
               : DateTime.parse(r['last_at'] as String),
           unread: (r['unread'] as num?)?.toInt() ?? 0,
+          // Колонок может не быть, пока не применён fix_020 — тогда «А».
+          lastMine: r['last_kind'] == 'user' && r['last_author_id'] == _uid,
+          lastRead: switch ((r['last_id'], r['peer_last_read'])) {
+            (final num id, final num read) => read >= id,
+            _ => false,
+          },
           peerAvatarUrl: r['peer_avatar'] as String?,
           peerId: r['peer_id'] as String?,
           peerUsername: r['peer_username'] as String?,
@@ -121,6 +138,38 @@ class SupabaseChatRepository implements ChatRepository {
       // Таблица могла быть не создана — работаем без «удалено у себя».
     }
     _listenMessages(chatId, state);
+    _listenPeerRead(chatId, state);
+  }
+
+  /// Следит за «прочитано до» собеседника. Для чата 1:1 это единственная
+  /// строка chat_members не моего пользователя. Нет realtime (fix_020 не
+  /// применён) — остаётся стартовое значение, свои сообщения будут «А».
+  void _listenPeerRead(String chatId, _MessagesState state) {
+    void retry(Object? reason) {
+      debugPrint('Подписка на прочтение оборвалась ($reason), переподписка');
+      state.membersSub?.cancel();
+      Timer(const Duration(seconds: 3), () => _listenPeerRead(chatId, state));
+    }
+
+    state.membersSub = _client
+        .from('chat_members')
+        .stream(primaryKey: ['chat_id', 'user_id'])
+        .eq('chat_id', chatId)
+        .listen(
+          (rows) {
+            final peer = rows.where((r) => r['user_id'] != _uid);
+            final read = peer.isEmpty
+                ? 0
+                : (peer.first['last_read_message_id'] as num?)?.toInt() ?? 0;
+            if (read == state.peerLastRead) return;
+            state.peerLastRead = read;
+            if (state.ready) {
+              state.controller.add(_visibleMessages(chatId, state));
+            }
+          },
+          onError: retry,
+          onDone: () => retry('done'),
+        );
   }
 
   /// Подписка на сообщения чата. Если realtime-соединение оборвалось (сеть,
@@ -159,6 +208,9 @@ class SupabaseChatRepository implements ChatRepository {
           text: r['body'] as String,
           sentAt: DateTime.parse(r['created_at'] as String),
           mine: r['author_id'] == _uid,
+          read:
+              r['author_id'] == _uid &&
+              (r['id'] as num).toInt() <= state.peerLastRead,
           kind: switch (r['kind'] as String?) {
             'clear' => MessageKind.clear,
             'pin' => MessageKind.pin,

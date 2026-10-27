@@ -233,9 +233,21 @@ class _ChatTile extends StatelessWidget {
               alignment: Alignment.topCenter,
               child: Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  formatTime(chat.lastAt),
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (chat.lastMine) ...[
+                      ReadMark(read: chat.lastRead, fontSize: 14),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      formatTime(chat.lastAt),
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

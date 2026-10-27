@@ -33,6 +33,7 @@ import 'notifications/notification_service.dart';
 import 'data/models.dart';
 import 'screens/call_screen.dart';
 import 'screens/splash_screen.dart';
+import 'settings/app_settings.dart';
 import 'theme.dart';
 
 /// Переключается кнопкой «DARK» на экране чатов и строкой «Тема» в настройках.
@@ -55,6 +56,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   await initTheme(prefs);
+  await appSettings.load(prefs);
   pinLock = PinLock(prefs);
   reactionUsage = ReactionUsage(prefs);
   voicePlayer = VoicePlayerController(AudioplayersBackend());

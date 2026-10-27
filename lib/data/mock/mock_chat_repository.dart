@@ -24,6 +24,7 @@ class _MockChat {
   int unread;
   final pinnedIds = <String>[]; // новые закрепы первыми
   final hidden = <String>{}; // «удалено у себя»
+  final readByPeer = <String>{}; // мои сообщения, которые прочитал собеседник
   // message id → (кто → его эмодзи); «я» в моке — ключ 'me'.
   final reactions = <String, Map<String, Set<String>>>{};
 
@@ -46,8 +47,17 @@ class _MockChat {
 
   List<Message> get visibleMessages => [
     for (final m in messages)
-      if (!hidden.contains(m.id)) m,
+      if (!hidden.contains(m.id))
+        m.mine ? m.withRead(readByPeer.contains(m.id)) : m,
   ];
+
+  /// Собеседник прочитал всё, что я написал к этому моменту.
+  void peerReadsAll() {
+    readByPeer.addAll([
+      for (final m in messages)
+        if (m.mine) m.id,
+    ]);
+  }
 
   ChatSummary get summary => ChatSummary(
     id: id,
@@ -68,6 +78,10 @@ class _MockChat {
     },
     lastAt: visibleMessages.lastOrNull?.sentAt,
     unread: unread,
+    lastMine:
+        visibleMessages.lastOrNull?.mine == true &&
+        visibleMessages.last.kind == MessageKind.user,
+    lastRead: visibleMessages.lastOrNull?.read ?? false,
   );
 }
 
@@ -243,6 +257,7 @@ class MockChatRepository implements ChatRepository {
 
     // Демо-ответ собеседника.
     Timer(replyDelay, () {
+      chat.peerReadsAll();
       chat.messages.add(
         Message(
           id: 'm${_nextId++}',
