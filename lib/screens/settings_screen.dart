@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/auth_repository.dart';
+import '../config.dart';
 import '../main.dart';
 import '../notifications/notification_service.dart';
 import '../notifications/web_notifier_stub.dart'
@@ -262,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: 'А?',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: AppConfig.version,
                 ),
               ),
               const SizedBox(height: 16),

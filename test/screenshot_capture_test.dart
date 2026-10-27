@@ -51,8 +51,9 @@ import 'package:a_messenger/theme.dart';
 
 import 'fakes.dart';
 
-const _outDir =
-    r'C:\Users\fon\AppData\Local\Temp\claude\C--Users-fon-projects-flutter-A\cf35cef7-9a57-4d19-8f8c-a404cc4cacba\scratchpad\screens';
+/// Куда писать PNG: SCREENSHOT_DIR, иначе build/screenshots (папка в .gitignore).
+final _outDir =
+    Platform.environment['SCREENSHOT_DIR'] ?? 'build${Platform.pathSeparator}screenshots';
 
 final _boundaryKey = GlobalKey();
 
@@ -82,7 +83,9 @@ Future<void> _capture(WidgetTester tester, String name) async {
   await tester.runAsync(() async {
     final image = await boundary.toImage();
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    File('$_outDir\\$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
+    File(
+      '$_outDir${Platform.pathSeparator}$name.png',
+    ).writeAsBytesSync(bytes!.buffer.asUint8List());
   });
 }
 

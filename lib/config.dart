@@ -7,6 +7,10 @@
 ///   --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
 ///   --dart-define=SUPABASE_ANON_KEY=eyJ...
 abstract final class AppConfig {
+  /// Версия приложения; держим равной `version` в pubspec.yaml (без «+сборка»),
+  /// это проверяет test/version_test.dart.
+  static const version = '0.0.1';
+
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
