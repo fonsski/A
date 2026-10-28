@@ -81,7 +81,13 @@ class _LoginScreenState extends State<LoginScreen> {
       showAuthError(context, 'Это не похоже на почту');
       return;
     }
-    await authRepository.requestPasswordReset(email);
+    try {
+      await authRepository.requestPasswordReset(email);
+    } on AuthFailure catch (e) {
+      // Раньше ошибка (лимит писем, запрет отправки) терялась молча.
+      if (mounted) showAuthError(context, e);
+      return;
+    }
     if (mounted) {
       showAuthError(context, 'Если такая почта есть — письмо уже в пути');
     }
@@ -124,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
               AuthButton(label: 'Войти!', onPressed: _submit, busy: _busy),
               const SizedBox(height: 8),
             ],
-            AuthLink(label: 'Восcтановить доступ?', onTap: _resetPassword),
+            AuthLink(label: 'Восстановить доступ?', onTap: _resetPassword),
             const SizedBox(height: 8),
             AuthOutlinedButton(
               label: _qrMode ? 'Войти иначе' : 'Войти по QR-коду',

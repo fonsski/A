@@ -110,8 +110,13 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> requestPasswordReset(String email) =>
-      _client.auth.resetPasswordForEmail(email.trim());
+  Future<void> requestPasswordReset(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email.trim());
+    } on sb.AuthException catch (e) {
+      throw AuthFailure(_ru(e));
+    }
+  }
 
   @override
   Future<bool> isUsernameAvailable(String username) async {
@@ -329,8 +334,12 @@ class SupabaseAuthRepository implements AuthRepository {
       'weak_password' => 'Слишком простой пароль',
       'same_password' => 'Новый пароль совпадает со старым',
       'email_address_invalid' => 'Эта почта не подходит',
-      'over_email_send_rate_limit' =>
+      'over_email_send_rate_limit' || 'over_request_rate_limit' =>
         'Слишком часто — подожди минуту и попробуй снова',
+      // Встроенная почта Supabase шлёт только членам команды проекта.
+      'email_address_not_authorized' =>
+        'Сервер не может отправить письмо на этот адрес — '
+            'в Supabase нужно подключить свой SMTP',
       _ => 'Не получилось: ${e.message}',
     };
   }
