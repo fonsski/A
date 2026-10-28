@@ -27,10 +27,14 @@ Flutter-приложение по макету Figma
 
 ## Запуск
 
+Приложение работает только с реальным Supabase: ключи берутся из
+`dart_defines.json` (см. ниже). Запускать через скрипт:
+
 ```sh
-flutter run -d chrome        # веб, мок-бэкенд (демо-аккаунт: demo@a.ru / password1)
-flutter run                  # устройство/эмулятор
+./run.sh macos               # или chrome, id iPhone и т. д.
 ```
+
+Без ключей (обычный `flutter run`) показывается экран «Нет ключей Supabase».
 
 ### Тестовые сборки для iOS и macOS (отладка на своих устройствах)
 
@@ -41,7 +45,7 @@ flutter run                  # устройство/эмулятор
 **macOS** (подпись для запуска на своём Mac не нужна):
 
 ```sh
-flutter run -d macos
+./run.sh macos
 flutter build macos --debug      # build/macos/Build/Products/Debug/a_messenger.app
 ```
 
@@ -55,12 +59,11 @@ flutter build macos --debug      # build/macos/Build/Products/Debug/a_messenger.
 3. `flutter devices` — найти устройство, затем:
 
 ```sh
-flutter run -d <id устройства>
+./run.sh <id устройства>
 flutter build ios --debug --no-codesign   # только проверка, что сборка собирается
 ```
 
-Ключи Supabase передаются так же, как в разделе ниже (`--dart-define`). Без них
-приложение работает на мок-данных. Запрошенные разрешения: камера, микрофон,
+Ключи Supabase нужны всегда (раздел ниже). Запрошенные разрешения: камера, микрофон,
 фото (iOS) и камера, микрофон, сеть, выбор файлов (macOS). Android-идентификатор
 остался `com.example.a_messenger` — он не совпадает с iOS/macOS.
 
@@ -79,18 +82,16 @@ flutter build ios --debug --no-codesign   # только проверка, чт�
    `.gitignore`), вписать URL проекта и anon/publishable ключ и запускать с ним:
 
 ```sh
-flutter run -d chrome --dart-define-from-file=dart_defines.json
-flutter run -d macos  --dart-define-from-file=dart_defines.json
-flutter run -d <id iPhone> --dart-define-from-file=dart_defines.json
+./run.sh chrome
+./run.sh macos
+./run.sh <id iPhone>
 ```
 
-(то же можно передать по одному ключу: `--dart-define=SUPABASE_URL=…`
+(то же вручную: `flutter run -d macos --dart-define-from-file=dart_defines.json`
+или по одному ключу: `--dart-define=SUPABASE_URL=…`
 `--dart-define=SUPABASE_ANON_KEY=…`).
 
-**Без этих ключей приложение работает на мок-репозитории**: письма не уходят
-наружу (восстановление пароля и подтверждение почты только имитируются через
-~5 секунд), ник `de.panda` занят — удобно проверять валидацию. Если «письмо не
-приходит», в первую очередь проверьте, что приложение запущено с ключами.
+Мок-репозитории (`Mock*Repository`) остались только для тестов.
 
 `flutter test test/screenshot_capture_test.dart` рендерит все экраны в PNG
 для визуальной сверки с макетом. Файлы попадают в `build/screenshots`

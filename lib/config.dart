@@ -3,21 +3,20 @@ import 'package:flutter/foundation.dart'
 
 /// Конфигурация бэкенда.
 ///
-/// Пока URL пустой — приложение работает на мок-репозитории (без сети).
-/// Когда создадите проект на supabase.com, запускайте так:
+/// Ключи Supabase обязательны: без них приложение показывает экран
+/// «Нет ключей» и не запускается (мок-репозитории остались только для тестов).
+/// Запускать через `./run.sh` или так:
 ///
-/// flutter run -d chrome \
-///   --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
-///   --dart-define=SUPABASE_ANON_KEY=eyJ...
+/// flutter run -d macos --dart-define-from-file=dart_defines.json
 abstract final class AppConfig {
   /// Версия приложения; держим равной `version` в pubspec.yaml (без «+сборка»),
   /// это проверяет test/version_test.dart.
-  static const version = '0.0.3';
+  static const version = '0.0.4';
 
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  static bool get useSupabase =>
+  static bool get hasSupabaseKeys =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
   /// URL-схема приложения на мобильных платформах и macOS. Прописана в

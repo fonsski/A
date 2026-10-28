@@ -3,15 +3,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_repository.dart';
-import 'auth/mock_auth_repository.dart';
 import 'auth/pin_lock.dart';
 import 'auth/supabase_auth_repository.dart';
 import 'config.dart';
 import 'data/chat_repository.dart';
 import 'data/friends_repository.dart';
-import 'data/mock/mock_chat_repository.dart';
-import 'data/mock/mock_friends_repository.dart';
-import 'data/mock/mock_wall_repository.dart';
 import 'data/presence_repository.dart';
 import 'data/privacy_repository.dart';
 import 'data/reaction_usage.dart';
@@ -23,7 +19,6 @@ import 'data/supabase/supabase_wall_repository.dart';
 import 'data/wall_repository.dart';
 import 'calls/call_engine.dart';
 import 'calls/call_service.dart';
-import 'calls/call_signaling.dart';
 import 'calls/supabase_call_signaling.dart';
 import 'media/audio_backend.dart';
 import 'media/circle_camera.dart';
@@ -32,6 +27,7 @@ import 'media/voice_recorder.dart';
 import 'notifications/notification_service.dart';
 import 'data/models.dart';
 import 'screens/call_screen.dart';
+import 'screens/missing_config_screen.dart';
 import 'screens/splash_screen.dart';
 import 'settings/app_settings.dart';
 import 'theme.dart';
@@ -62,35 +58,28 @@ Future<void> main() async {
   voicePlayer = VoicePlayerController(AudioplayersBackend());
   voiceRecorder = RecordPackageVoiceRecorder();
   circleCameraFactory = CameraPackageCircleCamera.new;
-  if (AppConfig.useSupabase) {
-    debugPrint('А?: Supabase.initialize starting...');
-    await Supabase.initialize(
-      url: AppConfig.supabaseUrl,
-      // Принимает и новый publishable-ключ, и легаси anon-ключ.
-      publishableKey: AppConfig.supabaseAnonKey,
-    );
-    debugPrint('А?: Supabase.initialize done');
-    authRepository = SupabaseAuthRepository();
-    chatRepository = SupabaseChatRepository();
-    wallRepository = SupabaseWallRepository();
-    privacyRepository = SupabasePrivacyRepository();
-    friendsRepository = SupabaseFriendsRepository();
-    presenceRepository = SupabasePresenceRepository();
-  } else {
-    authRepository = MockAuthRepository();
-    chatRepository = MockChatRepository();
-    wallRepository = MockWallRepository();
-    privacyRepository = MockPrivacyRepository();
-    friendsRepository = MockFriendsRepository();
-    presenceRepository = MockPresenceRepository();
+  // Без ключей приложение не запускается: мок-режим только для тестов, иначе
+  // письма (восстановление пароля, подтверждение) молча не уходят.
+  if (!AppConfig.hasSupabaseKeys) {
+    runApp(const MissingConfigApp());
+    return;
   }
+  debugPrint('А?: Supabase.initialize starting...');
+  await Supabase.initialize(
+    url: AppConfig.supabaseUrl,
+    // Принимает и новый publishable-ключ, и легаси anon-ключ.
+    publishableKey: AppConfig.supabaseAnonKey,
+  );
+  debugPrint('А?: Supabase.initialize done');
+  authRepository = SupabaseAuthRepository();
+  chatRepository = SupabaseChatRepository();
+  wallRepository = SupabaseWallRepository();
+  privacyRepository = SupabasePrivacyRepository();
+  friendsRepository = SupabaseFriendsRepository();
+  presenceRepository = SupabasePresenceRepository();
   callService = CallService(
-    signaling: AppConfig.useSupabase
-        ? SupabaseCallSignaling()
-        : DemoCallSignaling(),
-    engineFactory: AppConfig.useSupabase
-        ? WebRtcCallEngine.new
-        : MockCallEngine.new,
+    signaling: SupabaseCallSignaling(),
+    engineFactory: WebRtcCallEngine.new,
     self: () {
       final auth = authRepository.current;
       return UserSummary(
