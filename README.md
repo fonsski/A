@@ -59,9 +59,18 @@ flutter build macos --debug      # build/macos/Build/Products/Debug/a_messenger.
 3. `flutter devices` — найти устройство, затем:
 
 ```sh
-./run.sh <id устройства>
+./run.sh <id устройства>             # debug: только пока подключено к Flutter
+./run.sh <id устройства> --release   # автономная сборка для запуска с домашнего экрана
 flutter build ios --debug --no-codesign   # только проверка, что сборка собирается
 ```
+
+Debug-сборку iOS 14+ нельзя открыть с домашнего экрана («debug mode Flutter
+apps can only be launched from Flutter tooling»), для этого нужен `--release`.
+Если `flutter run` на телефоне виснет на «Xcode is taking longer…», проверьте,
+что `xcode-select -p` указывает на Xcode, поддерживающий iOS телефона, и
+включите `flutter config --enable-lldb-debugging`. После `--release` приложение
+может не найтись по пути `build/ios/iphoneos` — ставьте
+`xcrun devicectl device install app --device <id> build/ios/iphoneos/Runner.app`.
 
 Ключи Supabase нужны всегда (раздел ниже). Запрошенные разрешения: камера, микрофон,
 фото (iOS) и камера, микрофон, сеть, выбор файлов (macOS). Android-идентификатор

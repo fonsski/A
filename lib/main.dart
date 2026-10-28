@@ -26,6 +26,7 @@ import 'media/voice_player.dart';
 import 'media/voice_recorder.dart';
 import 'notifications/notification_service.dart';
 import 'data/models.dart';
+import 'screens/boot_screen.dart';
 import 'screens/call_screen.dart';
 import 'screens/missing_config_screen.dart';
 import 'screens/splash_screen.dart';
@@ -50,9 +51,26 @@ Future<void> initTheme(SharedPreferences prefs) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Экран запуска показывается сразу: если шаг ниже завис или упал, на
+  // телефоне видно какой, а не белый экран.
+  final step = ValueNotifier<String>('начало');
+  final error = ValueNotifier<String?>(null);
+  runApp(BootApp(step: step, error: error));
+  try {
+    await _boot(step);
+  } catch (e, st) {
+    debugPrint('А?: запуск не удался: $e\n$st');
+    error.value = '$e\n\n$st';
+  }
+}
+
+Future<void> _boot(ValueNotifier<String> step) async {
+  step.value = 'SharedPreferences';
   final prefs = await SharedPreferences.getInstance();
+  step.value = 'тема и настройки';
   await initTheme(prefs);
   await appSettings.load(prefs);
+  step.value = 'голос и камера';
   pinLock = PinLock(prefs);
   reactionUsage = ReactionUsage(prefs);
   voicePlayer = VoicePlayerController(AudioplayersBackend());
@@ -64,6 +82,7 @@ Future<void> main() async {
     runApp(const MissingConfigApp());
     return;
   }
+  step.value = 'Supabase.initialize';
   debugPrint('А?: Supabase.initialize starting...');
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
@@ -71,6 +90,7 @@ Future<void> main() async {
     publishableKey: AppConfig.supabaseAnonKey,
   );
   debugPrint('А?: Supabase.initialize done');
+  step.value = 'репозитории и звонки';
   authRepository = SupabaseAuthRepository();
   chatRepository = SupabaseChatRepository();
   wallRepository = SupabaseWallRepository();
@@ -91,6 +111,7 @@ Future<void> main() async {
       );
     },
   );
+  step.value = 'вход (сессия)';
   await authRepository.init();
   notificationService = NotificationService(prefs)..init();
   runApp(const AMessengerApp());
