@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/auth/auth_desktop_frame.dart';
 import '../screens/auth/auth_flow.dart';
+import '../screens/auth/new_password_screen.dart';
 import '../screens/auth/pick_username_screen.dart';
 import '../screens/auth/pin_lock_screen.dart';
 import '../screens/home_shell.dart';
@@ -16,6 +17,19 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ссылка восстановления из письма важнее любого другого состояния.
+    return ValueListenableBuilder<bool>(
+      valueListenable: authRepository.recovering,
+      builder: (context, recovering, _) {
+        if (recovering) {
+          return const AuthDesktopFrame(child: NewPasswordScreen());
+        }
+        return _sessionGate();
+      },
+    );
+  }
+
+  Widget _sessionGate() {
     return StreamBuilder<AuthSnapshot?>(
       stream: authRepository.snapshots,
       initialData: authRepository.current,

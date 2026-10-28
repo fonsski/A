@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
+
 import 'qr_login.dart';
 
 /// Профиль пользователя в системе «А?».
@@ -69,6 +71,19 @@ abstract class AuthRepository {
   Future<void> resendConfirmation(String email);
 
   Future<void> requestPasswordReset(String email);
+
+  /// true с момента, когда пользователь открыл ссылку из письма восстановления,
+  /// и пока не задал новый пароль ([completeRecovery]) или не отказался
+  /// ([cancelRecovery]). AuthGate в это время показывает экран нового пароля.
+  ValueListenable<bool> get recovering;
+
+  /// Задаёт новый пароль по открытой ссылке восстановления и оставляет
+  /// пользователя в аккаунте. Бросает [AuthFailure], если ссылка устарела
+  /// или пароль не подошёл.
+  Future<void> completeRecovery(String newPassword);
+
+  /// Отказ от смены пароля: закрывает сессию, открытую ссылкой.
+  Future<void> cancelRecovery();
 
   /// Свободен ли ник (формат проверяется отдельно, validateUsernameFormat).
   Future<bool> isUsernameAvailable(String username);

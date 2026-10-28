@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
+
 import 'auth_repository.dart';
 import 'qr_login.dart';
 
@@ -131,7 +133,54 @@ class MockAuthRepository implements AuthRepository {
   Future<void> resendConfirmation(String email) async {}
 
   @override
-  Future<void> requestPasswordReset(String email) async {}
+  Future<void> requestPasswordReset(String email) async {
+    await _latency;
+    final key = email.trim().toLowerCase();
+    // Как и настоящий сервер, не выдаём, есть ли такая почта. Для существующей
+    // имитируем «письмо пришло и ссылку открыли» через [confirmDelay].
+    if (_users.containsKey(key)) {
+      Timer(confirmDelay, () => openRecoveryLink(key));
+    }
+  }
+
+  final _recovering = ValueNotifier<bool>(false);
+  String? _recoveryEmail;
+
+  @override
+  ValueListenable<bool> get recovering => _recovering;
+
+  /// Имитация открытия ссылки восстановления из письма (для демо и тестов).
+  void openRecoveryLink(String email) {
+    final key = email.trim().toLowerCase();
+    if (!_users.containsKey(key)) return;
+    _recoveryEmail = key;
+    _recovering.value = true;
+  }
+
+  @override
+  Future<void> completeRecovery(String newPassword) async {
+    await _latency;
+    final user = _users[_recoveryEmail];
+    if (user == null) {
+      throw const AuthFailure('Ссылка устарела — запроси письмо ещё раз');
+    }
+    if (newPassword == user.password) {
+      throw const AuthFailure('Новый пароль совпадает со старым');
+    }
+    user
+      ..password = newPassword
+      ..confirmed = true;
+    _recoveryEmail = null;
+    _emit(_snapshotOf(user));
+    _recovering.value = false;
+  }
+
+  @override
+  Future<void> cancelRecovery() async {
+    _recoveryEmail = null;
+    _emit(null);
+    _recovering.value = false;
+  }
 
   @override
   Future<bool> isUsernameAvailable(String username) async {

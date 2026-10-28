@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import '../config.dart';
 import 'auth_repository.dart';
 import 'qr_login.dart';
 
@@ -37,6 +38,11 @@ class SupabaseAuthRepository implements AuthRepository {
       final session = state.session;
       if (session == null) {
         _emit(null);
+      } else if (state.event == sb.AuthChangeEvent.passwordRecovery) {
+        // Открыли ссылку из письма: сессия уже есть, но сначала нужен
+        // новый пароль — AuthGate покажет экран по [recovering].
+        _recovering.value = true;
+        _emit(await _load(session.user));
       } else if (state.event == sb.AuthChangeEvent.signedIn ||
           state.event == sb.AuthChangeEvent.initialSession) {
         _emit(await _load(session.user));
@@ -112,10 +118,37 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> requestPasswordReset(String email) async {
     try {
-      await _client.auth.resetPasswordForEmail(email.trim());
+      await _client.auth.resetPasswordForEmail(
+        email.trim(),
+        redirectTo: AppConfig.passwordResetRedirect,
+      );
     } on sb.AuthException catch (e) {
       throw AuthFailure(_ru(e));
     }
+  }
+
+  final _recovering = ValueNotifier<bool>(false);
+
+  @override
+  ValueListenable<bool> get recovering => _recovering;
+
+  @override
+  Future<void> completeRecovery(String newPassword) async {
+    if (_client.auth.currentSession == null) {
+      throw const AuthFailure('Ссылка устарела — запроси письмо ещё раз');
+    }
+    try {
+      await _client.auth.updateUser(sb.UserAttributes(password: newPassword));
+    } on sb.AuthException catch (e) {
+      throw AuthFailure(_ru(e));
+    }
+    _recovering.value = false;
+  }
+
+  @override
+  Future<void> cancelRecovery() async {
+    _recovering.value = false;
+    await _client.auth.signOut();
   }
 
   @override

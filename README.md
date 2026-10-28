@@ -67,8 +67,15 @@ flutter build ios --debug --no-codesign   # только проверка, чт�
 ### Подключение реального бэкенда (Supabase)
 
 1. Создать проект на supabase.com, включить Auth → Email → Confirm email.
-2. Выполнить `supabase/schema.sql` в SQL Editor.
-3. Запустить с ключами:
+2. Выполнить `supabase/schema.sql` в SQL Editor (для существующей базы —
+   недостающие `supabase/fix_*.sql` по порядку).
+3. Authentication → URL Configuration → Redirect URLs: добавить
+   `com.fonsski.amessenger://reset-password` (возврат по ссылке из письма
+   восстановления пароля). Для веба адрес сайта должен быть в этом же списке
+   или совпадать с Site URL.
+4. Authentication → Emails → SMTP Settings: включить свой SMTP. Встроенная
+   почта Supabase доставляет письма только членам команды проекта.
+5. Запустить с ключами:
 
 ```sh
 flutter run -d chrome \
