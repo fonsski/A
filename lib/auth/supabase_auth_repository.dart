@@ -15,6 +15,10 @@ class SupabaseAuthRepository implements AuthRepository {
   final sb.SupabaseClient _client;
 
   final _controller = StreamController<AuthSnapshot?>.broadcast();
+  final _linkErrors = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> get linkErrors => _linkErrors.stream;
   AuthSnapshot? _current;
   StreamSubscription<sb.AuthState>? _sub;
 
@@ -47,7 +51,7 @@ class SupabaseAuthRepository implements AuthRepository {
           state.event == sb.AuthChangeEvent.initialSession) {
         _emit(await _load(session.user));
       }
-    });
+    }, onError: (Object error) => _linkErrors.add(linkErrorText(error)));
     final session = _client.auth.currentSession;
     if (session != null) _emit(await _load(session.user));
   }
@@ -391,3 +395,26 @@ class SupabaseAuthRepository implements AuthRepository {
 /// пустым списком identities (так скрывается, что адрес занят).
 bool isRepeatedSignup(sb.User? user) =>
     user != null && user.identities?.isEmpty == true;
+
+/// Текст для пользователя, когда ссылка из письма не открылась. Supabase
+/// присылает такие ошибки в поток onAuthStateChange (устаревший код, повторное
+/// использование ссылки, нет code_verifier — ссылку открыли не там, где
+/// запрашивали письмо).
+String linkErrorText(Object error) {
+  if (error is sb.AuthException) {
+    final text = error.message.toLowerCase();
+    // Ошибка из самой ссылки (#error_code=otp_expired…) приходит в statusCode.
+    final codes = '${error.code} ${error.statusCode}';
+    if (text.contains('code verifier') || codes.contains('bad_code_verifier')) {
+      return 'Ссылку нужно открывать в том же приложении, где запрошено '
+          'письмо. Запроси его ещё раз и открой ссылку здесь';
+    }
+    if (codes.contains('otp_expired') ||
+        codes.contains('flow_state') ||
+        text.contains('expired') ||
+        text.contains('invalid')) {
+      return 'Ссылка устарела или уже использована — запроси письмо ещё раз';
+    }
+  }
+  return 'Не удалось открыть ссылку из письма — запроси письмо ещё раз';
+}

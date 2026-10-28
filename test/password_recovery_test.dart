@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import 'package:a_messenger/auth/auth_gate.dart';
 import 'package:a_messenger/auth/auth_repository.dart';
 import 'package:a_messenger/auth/mock_auth_repository.dart';
+import 'package:a_messenger/auth/supabase_auth_repository.dart';
 import 'package:a_messenger/config.dart';
 import 'package:a_messenger/screens/auth/auth_flow.dart';
 import 'package:a_messenger/screens/auth/new_password_screen.dart';
@@ -143,6 +145,42 @@ void main() {
       await _flush(tester);
       expect(find.byType(NewPasswordScreen), findsNothing);
       expect(find.byType(AuthFlow), findsOneWidget);
+    });
+  });
+
+  group('битая ссылка из письма', () {
+    testWidgets('AuthGate показывает сообщение об ошибке', (tester) async {
+      final repo = MockAuthRepository();
+      authRepository = repo;
+      await tester.pumpWidget(_app(const AuthGate()));
+
+      repo.failLink('Ссылка устарела или уже использована');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Ссылка устарела или уже использована'), findsOneWidget);
+    });
+
+    test('linkErrorText: тексты для разных ошибок Supabase', () {
+      // Ссылка устарела: код ошибки приходит в statusCode.
+      expect(
+        linkErrorText(
+          const sb.AuthException(
+            'Email link is invalid or has expired',
+            statusCode: 'otp_expired',
+            code: 'access_denied',
+          ),
+        ),
+        contains('устарела'),
+      );
+      expect(
+        linkErrorText(
+          const sb.AuthException(
+            'Code verifier could not be found in local storage.',
+          ),
+        ),
+        contains('в том же приложении'),
+      );
+      expect(linkErrorText(StateError('x')), contains('Не удалось открыть'));
     });
   });
 

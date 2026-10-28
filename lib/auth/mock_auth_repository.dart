@@ -143,6 +143,14 @@ class MockAuthRepository implements AuthRepository {
     }
   }
 
+  final _linkErrors = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> get linkErrors => _linkErrors.stream;
+
+  /// Имитирует битую ссылку из письма (для тестов).
+  void failLink(String message) => _linkErrors.add(message);
+
   final _recovering = ValueNotifier<bool>(false);
   String? _recoveryEmail;
 
