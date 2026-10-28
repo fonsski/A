@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../chat_repository.dart';
@@ -22,22 +24,33 @@ class _MessagesState {
 
 /// Чаты поверх Supabase: view `chat_overview` + realtime на `messages`.
 /// Требует applied supabase/schema.sql.
-class SupabaseChatRepository implements ChatRepository {
+class SupabaseChatRepository
+    with WidgetsBindingObserver
+    implements ChatRepository {
   SupabaseChatRepository() : _client = Supabase.instance.client {
-    // Новые и удалённые сообщения в моих чатах обновляют список.
+    WidgetsBinding.instance.addObserver(this);
+    // Новые и удалённые сообщения в моих чатах обновляют список и открытые
+    // ленты: realtime-подписка самой ленты (stream) на телефоне молча
+    // пропускает всё, что пришло, пока приложение было в фоне.
     _client
         .channel('chats-overview')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'messages',
-          callback: (_) => _refreshChats(),
+          callback: (payload) {
+            _refreshChats();
+            _reloadMessages(payload.newRecord['chat_id'] as String?);
+          },
         )
         .onPostgresChanges(
           event: PostgresChangeEvent.delete,
           schema: 'public',
           table: 'messages',
-          callback: (_) => _refreshChats(),
+          callback: (_) {
+            _refreshChats();
+            _reloadMessages(null);
+          },
         )
         // Собеседник прочитал чат — в списке «А» становится «АА».
         .onPostgresChanges(
@@ -47,6 +60,16 @@ class SupabaseChatRepository implements ChatRepository {
           callback: (_) => _refreshChats(),
         )
         .subscribe();
+  }
+
+  /// Вернулись в приложение: пока оно было в фоне, сокет мог оборваться и
+  /// события пропасть — перечитываем список и открытые ленты.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (_client.auth.currentUser == null) return;
+    unawaited(_refreshChats());
+    _reloadMessages(null);
   }
 
   final SupabaseClient _client;
@@ -199,6 +222,31 @@ class SupabaseChatRepository implements ChatRepository {
         );
   }
 
+  /// Перечитывает сообщения открытых лент (одного чата или всех) обычным
+  /// запросом, не дожидаясь realtime.
+  void _reloadMessages(String? chatId) {
+    for (final entry in _messageStates.entries) {
+      if (chatId != null && entry.key != chatId) continue;
+      unawaited(_reloadMessagesOf(entry.key, entry.value));
+    }
+  }
+
+  Future<void> _reloadMessagesOf(String chatId, _MessagesState state) async {
+    try {
+      final rows = await _client
+          .from('messages')
+          .select()
+          .eq('chat_id', chatId)
+          .order('id', ascending: true);
+      state
+        ..rows = rows
+        ..ready = true;
+      state.controller.add(_visibleMessages(chatId, state));
+    } catch (e) {
+      debugPrint('Не удалось перечитать сообщения чата ($e)');
+    }
+  }
+
   List<Message> _visibleMessages(String chatId, _MessagesState state) => [
     for (final r in state.rows)
       if (!state.hidden.contains('${r['id']}'))
@@ -242,6 +290,8 @@ class SupabaseChatRepository implements ChatRepository {
     return snapshotThenUpdates(
       state.controller.stream,
       snapshot: () => state.ready ? _visibleMessages(chatId, state) : null,
+      // Снимок в памяти мог устареть (приложение было в фоне) — обновляем.
+      afterSubscribe: () => unawaited(_reloadMessagesOf(chatId, state)),
     );
   }
 
