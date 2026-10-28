@@ -11,7 +11,7 @@ import 'package:flutter/foundation.dart'
 abstract final class AppConfig {
   /// Версия приложения; держим равной `version` в pubspec.yaml (без «+сборка»),
   /// это проверяет test/version_test.dart.
-  static const version = '0.0.4';
+  static const version = '0.0.5';
 
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');

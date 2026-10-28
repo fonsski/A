@@ -76,7 +76,15 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signUp({required String email, required String password}) async {
     try {
-      await _client.auth.signUp(email: email.trim(), password: password);
+      final res = await _client.auth.signUp(
+        email: email.trim(),
+        password: password,
+      );
+      if (isRepeatedSignup(res.user)) {
+        throw const AuthFailure(
+          'Эта почта уже зарегистрирована — войди или восстанови пароль',
+        );
+      }
     } on sb.AuthException catch (e) {
       throw AuthFailure(_ru(e));
     }
@@ -377,3 +385,9 @@ class SupabaseAuthRepository implements AuthRepository {
     };
   }
 }
+
+/// При включённом подтверждении почты Supabase на повторную регистрацию уже
+/// существующей почты отвечает «успехом» без письма: пользователь приходит с
+/// пустым списком identities (так скрывается, что адрес занят).
+bool isRepeatedSignup(sb.User? user) =>
+    user != null && user.identities?.isEmpty == true;
