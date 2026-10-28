@@ -47,5 +47,7 @@ app.*.map.json
 # Local tool configs with secrets
 .mcp.json
 .claude/settings.local.json
+# Ключи Supabase для --dart-define-from-file (образец: dart_defines.example.json)
+dart_defines.json
 
 .claude

@@ -75,16 +75,22 @@ flutter build ios --debug --no-codesign   # только проверка, чт�
    или совпадать с Site URL.
 4. Authentication → Emails → SMTP Settings: включить свой SMTP. Встроенная
    почта Supabase доставляет письма только членам команды проекта.
-5. Запустить с ключами:
+5. Скопировать `dart_defines.example.json` в `dart_defines.json` (файл в
+   `.gitignore`), вписать URL проекта и anon/publishable ключ и запускать с ним:
 
 ```sh
-flutter run -d chrome \
-  --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=<anon или publishable ключ>
+flutter run -d chrome --dart-define-from-file=dart_defines.json
+flutter run -d macos  --dart-define-from-file=dart_defines.json
+flutter run -d <id iPhone> --dart-define-from-file=dart_defines.json
 ```
 
-Без ключей приложение работает на мок-репозитории: «письмо» подтверждается
-само через ~5 секунд, ник `de.panda` занят — удобно проверять валидацию.
+(то же можно передать по одному ключу: `--dart-define=SUPABASE_URL=…`
+`--dart-define=SUPABASE_ANON_KEY=…`).
+
+**Без этих ключей приложение работает на мок-репозитории**: письма не уходят
+наружу (восстановление пароля и подтверждение почты только имитируются через
+~5 секунд), ник `de.panda` занят — удобно проверять валидацию. Если «письмо не
+приходит», в первую очередь проверьте, что приложение запущено с ключами.
 
 `flutter test test/screenshot_capture_test.dart` рендерит все экраны в PNG
 для визуальной сверки с макетом. Файлы попадают в `build/screenshots`
